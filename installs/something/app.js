@@ -15,7 +15,6 @@ export const onInstall = ({ req, res, user, apps }) => {
 	// Initial DB population
 	return [
 		() => {
-			// const tableName = apps.appName.tables.todos.getTableName();
 			return [
 				// {
 				// 	statement: `ALTER TABLE ${tableName}
@@ -52,6 +51,8 @@ export const endpoints = {
 				// By default will return JSON of the returnedObjectName
 				execution: async ({ req, res, user, apps }) => {
 					console.log(apps);
+					const todos = apps.something.operations.createTodo();
+					console.log(todos);
 					return [
 						() => {
 							// Interact with third party apps
@@ -77,6 +78,7 @@ export const endpoints = {
 			},
 			post: {
 				summary: "Create a new todo",
+				operationId: "createTodo",
 				// By default will return JSON of the returnedObjectName
 				execution: ({ req, res, user, apps }) => {
 					console.log("Executing...");

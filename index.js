@@ -140,117 +140,112 @@ async function prepareEnvironmentInterface(app, appsJson, routeParams) {
 	// We don't want apps to know about other apps it doesnt have permission to access
 	// Now we have to loop through granted_permissions and fetch the endpoints per app that has permissions
 
-	// Do fetching first for all operations
+	/**
+	 * Create object that looks like
+	 * { appName: { needed: ['table', 'operation'] }, ... }
+	 */
 	const requiredModuleObj = app.granted_permissions.reduce((acc, perm) => {
 		const appName = perm.app_name;
 		if (!acc[appName]) {
-			acc[appName] = { needed: [] };
+			acc[appName] = { needed: [], keys: [] };
 		}
-		if (acc[appName].needed.includes(perm.type)) {
-			return acc;
+		// Add the perm type if we don't have it
+		if (!acc[appName].needed.includes(perm.type)) {
+			acc[appName].needed.push(perm.type);
 		}
-		acc[appName].needed.push(perm.type);
+		acc[appName].keys.push({ key: perm.key, type: perm.type });
 		return acc;
 	}, {});
+
+	// Put that into an array and remove meta ones
 	const requiredModules = Object.keys(requiredModuleObj)
 		.map((an) => ({
 			appName: an,
 			needed: requiredModuleObj[an].needed,
+			keys: requiredModuleObj[an].keys,
 		}))
 		.filter((an) => an.appName !== "_meta");
 
+	// Import module and append it to the object
 	const models = await Promise.all(
 		requiredModules.map(async (mod) => {
-			const module = await import(`../installs/${mod.appName}`);
+			const module = await import(`./installs/${mod.appName}/app.js`);
 			mod.module = module;
+			mod.tables = await module.tables();
 			return mod;
 		})
 	);
 
-	console.log(models);
-	// Loop through operations, import as needed
-	const gatherImports = async () => {};
-
 	// Build object after
+	const ops = models.reduce((accumulator, model) => {
+		const { module, tables, appName, needed, keys } = model;
 
-	const ops = await app.granted_permissions.reduce(
-		async (accumulator, perm) => {
-			console.log(accumulator);
-			async () => {};
-			// Access potentially oriented object (we set this at the end)
-			if (!accumulator[perm.app_name]) {
-				accumulator[perm.app_name] = {
-					operations: {},
-					tables: {},
-				};
-			}
+		// Access potentially oriented object (we set this at the end)
+		if (!accumulator[appName]) {
+			accumulator[appName] = {
+				operations: {},
+				tables: {},
+			};
+		}
 
-			if (perm.type === "table" || perm.type === "operation") {
-				// Import module from app_name
-				const { endpoints, tables } = await import(
-					`./installs/${perm.app_name}/app.js`
+		// Import module from app_name
+		const { endpoints } = module;
+		const flatOperations = flattenOpenApiJson(endpoints.paths);
+
+		// Let's find the app we're working within
+		const referencedApp = appsJson.installed_apps.find(
+			(a) => a.name === appName
+		);
+
+		keys.forEach((permKey) => {
+			if (permKey.type === "operation") {
+				const operation = flatOperations.find(
+					(op) => op.operationId === permKey.key
 				);
 
-				const tableConfigs = await tables();
+				console.log(operation);
 
-				// Let's find the app we're working within
-				const referencedApp = appsJson.installed_apps.find(
-					(a) => a.name === perm.app_name
-				);
-
-				if (perm.type === "operation") {
-					const flatOperations = flattenOpenApiJson(endpoints.paths);
-
-					const operation = flatOperations.find(
-						(op) => op.operationId === perm.key
-					);
-
-					if (operation) {
-						accumulator[perm.app_name].operations[
-							operation.operationId
-						] = async () => {
+				if (operation) {
+					const possiblyRecursiveInterface =
+						appName === app.name
+							? accumulator
+							: prepareEnvironmentInterface(
+									referencedApp,
+									appsJson,
+									routeParams
+							  );
+					accumulator[appName].operations[operation.operationId] =
+						async () => {
 							// Don't want to create an infinite loop
-							const recursiveInterface =
-								perm.app_name === app.name
-									? accumulator
-									: prepareEnvironmentInterface(
-											referencedApp,
-											appsJson,
-											routeParams
-									  );
-							const operationsArr = await operation.execute({
+							const operationsArr = await operation.execution({
 								...routeParams,
 								// This will be trouble...
 								// How are we going to find the envInterface for each execution context?
-								apps: recursiveInterface,
+								apps: possiblyRecursiveInterface,
 							});
 							return executeOperations(
 								operationsArr,
 								referencedApp.id
 							);
 						};
-					}
-				}
-
-				if (perm.type === "table") {
-					const tableConfig = tableConfigs[perm.key];
-
-					// If there is a table by the perm key name
-					if (!accumulator[perm.app_name].tables[perm.key]) {
-						accumulator[perm.app_name].tables[perm.key] = {};
-					}
-
-					accumulator[perm.app_name].tables[perm.key].getTableName =
-						() =>
-							getTableIdentifier(tableConfig.table_name, app.id);
 				}
 			}
-			return accumulator;
-		},
-		{}
-	);
 
-	console.log(ops);
+			if (permKey.type === "table") {
+				const tableConfig = tables[permKey.key];
+
+				// If there is a table by the perm key name
+				if (!accumulator[appName].tables[permKey.key]) {
+					accumulator[appName].tables[permKey.key] = {};
+				}
+
+				accumulator[appName].tables[permKey.key].getTableName = () =>
+					getTableIdentifier(tableConfig.table_name, app.id);
+			}
+		});
+
+		return accumulator;
+	}, {});
 
 	return ops;
 }
@@ -306,35 +301,41 @@ async function buildRoutes() {
 						methods.map(async (method) => {
 							const routeKey = `${installedApp.name}~${method}~${formattedPathString}`;
 							const routeCallback = async (req, res) => {
-								const environmentInterface =
-									await prepareEnvironmentInterface(
-										installedApp,
-										appsJson,
-										{ req, res }
+								try {
+									const environmentInterface =
+										await prepareEnvironmentInterface(
+											installedApp,
+											appsJson,
+											{ req, res }
+										);
+
+									// This is where we can execute pre-operations
+									const methodDef = routeObj[method];
+									const executionOps =
+										await methodDef.execution({
+											req,
+											res,
+											apps: environmentInterface,
+										});
+									// if (executionOpsLength < 1)
+
+									const memory = await executeOperations(
+										executionOps,
+										installedApp.id
 									);
 
-								// This is where we can execute pre-operations
-								const methodDef = routeObj[method];
-								const executionOps = await methodDef.execution({
-									req,
-									res,
-									apps: environmentInterface,
-								});
-								// if (executionOpsLength < 1)
-
-								const memory = await executeOperations(
-									executionOps,
-									installedApp.id
-								);
-
-								if (methodDef.handleResponse) {
-									return await methodDef.handleResponse({
-										req,
-										res,
-										data: memory,
-									});
+									if (methodDef.handleResponse) {
+										return await methodDef.handleResponse({
+											req,
+											res,
+											data: memory,
+										});
+									}
+									res.status(200).send(memory);
+								} catch (err) {
+									console.log(err);
+									res.status(500).send({ sucess: false });
 								}
-								res.status(200).send(memory);
 							};
 							// This is a dynamic way of setting express's routes
 							// server.get('/items', callback())

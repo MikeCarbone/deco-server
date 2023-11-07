@@ -1,27 +1,27 @@
 {
-	"installed_apps": [
-		{
-			"id": "ade51b3d-ea00-4c78-aa36-cca28ccf5d43",
-			"manifest": "./installs/something/manifest.json",
-			"name": "something",
-			"manifest_uri": "http://localhost:4321/manifest.json",
-			"granted_permissions": [
-				{
-					"type": "meta",
-					"key": "profile.name",
-					"app_name": "_meta"
-				},
-				{
-					"type": "table",
-					"key": "todos",
-					"app_name": "something"
-				},
-				{
-					"type": "operation",
-					"key": "getTodos",
-					"app_name": "something"
-				}
-			]
-		}
-	]
+  "installed_apps": [
+    {
+      "id": "ade51b3d-ea00-4c78-aa36-cca28ccf5d43",
+      "manifest": "./installs/something/manifest.json",
+      "name": "something",
+      "manifest_uri": "http://localhost:4321/manifest.json",
+      "granted_permissions": [
+        {
+          "type": "meta",
+          "key": "profile.name",
+          "app_name": "_meta"
+        },
+        {
+          "type": "table",
+          "key": "todos",
+          "app_name": "something"
+        },
+        {
+          "type": "operation",
+          "key": "getTodos",
+          "app_name": "something"
+        }
+      ]
+    }
+  ]
 }
