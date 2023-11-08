@@ -24,6 +24,10 @@
           {
             "id": "getTodos",
             "is_required": true
+          },
+          {
+            "id": "createTodo",
+            "is_required": true
           }
         ],
         "tables": [

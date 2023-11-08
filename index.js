@@ -127,58 +127,68 @@ async function executeOperations(operationsArr, appId, memory = {}, index = 0) {
       const newStatement = deparse(ast);
       const transaction = await client.query(newStatement, values);
       memory[data_key] = transaction;
-    }),
+    })
   );
   return executeOperations(operationsArr, appId, memory, index + 1);
 }
 
-// This allows apps to interact with other apps
-// We can construct this per-route depending on granted permissions
-// This is essentially the interface how apps get to use other apps
-// We'll also want to enable access to root stuff here like logs, profile, etc
+/**
+ * This allows apps to interact with other apps
+ * We can construct this per-route depending on granted permissions
+ * This is essentially the interface how apps get to use other apps
+ * We'll also want to enable access to root stuff here like logs, profile, etc
+ * We don't want apps to know about other apps it doesnt have permission to access
+ */
 async function prepareEnvironmentInterface(app, appsJson, routeParams) {
-  // We don't want apps to know about other apps it doesnt have permission to access
-  // Now we have to loop through granted_permissions and fetch the endpoints per app that has permissions
+  /**
+   * Initial process is to take the granted_permissions and separate into each app
+   * We fetch
+   */
 
   /**
    * Create object that looks like
-   * { appName: { needed: ['table', 'operation'] }, ... }
+   * { appName: { permissions: [{ type: "operation", key: "getTodos" }] }, ... }
+   * This will put all of an app's permissions in the same bucket
+   * This will make the later import easier as we only have to do it once per app
    */
-  const requiredModuleObj = app.granted_permissions.reduce((acc, perm) => {
+  const requiredModulesObj = app.granted_permissions.reduce((acc, perm) => {
     const appName = perm.app_name;
     if (!acc[appName]) {
-      acc[appName] = { needed: [], keys: [] };
+      acc[appName] = { permissions: [], app_name: appName };
     }
-    // Add the perm type if we don't have it
-    if (!acc[appName].needed.includes(perm.type)) {
-      acc[appName].needed.push(perm.type);
-    }
-    acc[appName].keys.push({ key: perm.key, type: perm.type });
+    acc[appName].permissions.push(perm);
     return acc;
   }, {});
 
   // Put that into an array and remove meta ones
-  const requiredModules = Object.keys(requiredModuleObj)
-    .map((an) => ({
-      appName: an,
-      needed: requiredModuleObj[an].needed,
-      keys: requiredModuleObj[an].keys,
-    }))
-    .filter((an) => an.appName !== "_meta");
+  /**
+   * Now we have an array like
+   * [{ app_name: "something", permissions: [] }, ...]
+   */
+  const requiredModules = Object.keys(requiredModulesObj)
+    .map((objKey) => ({ ...requiredModulesObj[objKey] }))
+    .filter((perm) => perm.app_name !== "_meta");
 
   // Import module and append it to the object
   const models = await Promise.all(
     requiredModules.map(async (mod) => {
-      const module = await import(`./installs/${mod.appName}/app.js`);
+      const module = await import(`./installs/${mod.app_name}/app.js`);
       mod.module = module;
       mod.tables = await module.tables();
       return mod;
-    }),
+    })
   );
 
-  // Build object after
-  const ops = models.reduce((accumulator, model) => {
-    const { module, tables, appName, needed, keys } = model;
+  /**
+   * This should stay synchronous
+   * when we tried to do this async, the accumulated object was really buggy
+   * We tried different strategies to address this, but nothing worked so we
+   * split the async operations and fetches out of this
+   * if we have to append more async operations, do them above this before
+   * this reducer
+   */
+  const environmentInterface = models.reduce((accumulator, model) => {
+    const { module, tables, app_name: appName, permissions } = model;
 
     // Access potentially oriented object (we set this at the end)
     if (!accumulator[appName]) {
@@ -188,16 +198,19 @@ async function prepareEnvironmentInterface(app, appsJson, routeParams) {
       };
     }
 
-    // Import module from app_name
     const { endpoints } = module;
     const flatOperations = flattenOpenApiJson(endpoints.paths);
 
     // Let's find the app we're working within
     const referencedApp = appsJson.installed_apps.find((a) => a.name === appName);
 
-    keys.forEach((permKey) => {
-      if (permKey.type === "operation") {
-        const operation = flatOperations.find((op) => op.operationId === permKey.key);
+    /**
+     * This is where we'll be able to append operations to our 'apps' object
+     * Right now it's simple operations, but I imagine this apps object growing significantly
+     */
+    permissions.forEach((perm) => {
+      if (perm.type === "operation") {
+        const operation = flatOperations.find((op) => op.operationId === perm.key);
 
         if (operation) {
           const possiblyRecursiveInterface = appName === app.name ? accumulator : prepareEnvironmentInterface(referencedApp, appsJson, routeParams);
@@ -205,8 +218,6 @@ async function prepareEnvironmentInterface(app, appsJson, routeParams) {
             // Don't want to create an infinite loop
             const operationsArr = await operation.execution({
               ...routeParams,
-              // This will be trouble...
-              // How are we going to find the envInterface for each execution context?
               apps: possiblyRecursiveInterface,
             });
             return executeOperations(operationsArr, referencedApp.id);
@@ -214,24 +225,27 @@ async function prepareEnvironmentInterface(app, appsJson, routeParams) {
         }
       }
 
-      if (permKey.type === "table") {
-        const tableConfig = tables[permKey.key];
+      if (perm.type === "table") {
+        const tableConfig = tables[perm.key];
 
         // If there is a table by the perm key name
-        if (!accumulator[appName].tables[permKey.key]) {
-          accumulator[appName].tables[permKey.key] = {};
+        if (!accumulator[appName].tables[perm.key]) {
+          accumulator[appName].tables[perm.key] = {};
         }
 
-        accumulator[appName].tables[permKey.key].getTableName = () => getTableIdentifier(tableConfig.table_name, app.id);
+        accumulator[appName].tables[perm.key].getTableName = () => getTableIdentifier(tableConfig.table_name, app.id);
       }
     });
 
     return accumulator;
   }, {});
 
-  return ops;
+  return environmentInterface;
 }
 
+/**
+ * This function will construct our endpoints
+ */
 async function buildRoutes() {
   const appsJson = await loadAppsJson();
   const installedApps = appsJson.installed_apps;
@@ -309,11 +323,11 @@ async function buildRoutes() {
               // This is a dynamic way of setting express's routes
               // server.get('/items', callback())
               server[method](formattedPathString, routeCallback);
-            }),
+            })
           );
-        }),
+        })
       );
-    }),
+    })
   );
 }
 

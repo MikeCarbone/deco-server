@@ -20,6 +20,11 @@
           "type": "operation",
           "key": "getTodos",
           "app_name": "something"
+        },
+        {
+          "type": "operation",
+          "key": "createTodo",
+          "app_name": "something"
         }
       ]
     }
