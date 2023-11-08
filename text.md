@@ -17,19 +17,19 @@ model.on.update(() => { console.log(1) })
 model.on.update(() => { console.log(2) })
 model.update.addWebhook()
 
--   Bring your own DB
--   Shareable models (installable)
-    -   CRUD schematics
-        -   meta information (num_entriessssxs, install_date)
-        -   SQL statements not good, might require logic (like a bucket structure)
-        -   JS functions
-        -   Each operation exposed via endpoint
-    -   Access logs (which app, which user)
--   Apps
-    -   depend on models
-    -   depend on webhooks
--   Handling multiplayer / collaboration
--   Webhook subscriptions ?
+- Bring your own DB
+- Shareable models (installable)
+  - CRUD schematics
+    - meta information (num_entriessssxs, install_date)
+    - SQL statements not good, might require logic (like a bucket structure)
+    - JS functions
+    - Each operation exposed via endpoint
+  - Access logs (which app, which user)
+- Apps
+  - depend on models
+  - depend on webhooks
+- Handling multiplayer / collaboration
+- Webhook subscriptions ?
 
 Full Lifecycle:
 
