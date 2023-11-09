@@ -27,6 +27,13 @@
           "app_name": "something"
         }
       ]
+    },
+    {
+      "id": "34fc70f9-15dc-4712-bd8b-418b71e05eca",
+      "manifest": "./installs/deco-users/manifest.json",
+      "name": "deco-users",
+      "manifest_uri": "../deco-users/dist/manifest.json",
+      "granted_permissions": []
     }
   ]
 }

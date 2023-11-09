@@ -1,17 +1,10 @@
-// Post-install, assign a UUID to the package. That table
-
-// How do we handle multi-tenancy routing? Subdomains?
 import express from "express";
-// import { operations, onInstall } from "../truth/app.js";
 import pg from "pg";
 import dotenv from "dotenv";
-
 import { promises as fs } from "fs";
 import path from "path";
 import { v4 as uuid } from "uuid";
-
 import { fileURLToPath } from "url";
-
 import pgParse from "pgsql-parser";
 
 const { parse, deparse } = pgParse;
@@ -26,6 +19,8 @@ dotenv.config();
 const server = express();
 const port = process.env.PORT || 3000;
 
+server.use(express.json());
+
 const { Pool } = pg;
 const client = new Pool({
   host: process.env.PGHOST,
@@ -35,12 +30,6 @@ const client = new Pool({
   password: process.env.PGPASSWORD,
 });
 client.connect();
-
-// async function buildTable() {
-// 	const statement = onInstall()[0];
-// 	const dbRes = await client.query(statement);
-// 	console.log(dbRes);
-// }
 
 // Build apps.json if there is none
 async function loadAppsJson() {
@@ -240,6 +229,11 @@ async function prepareEnvironmentInterface(app, appsJson, routeParams) {
     return accumulator;
   }, {});
 
+  // Let's append current app information too...
+  environmentInterface["_current"] = {};
+  environmentInterface["_current"].id = app.id;
+  environmentInterface["_current"].secrets = [{}];
+
   return environmentInterface;
 }
 
@@ -287,17 +281,27 @@ async function buildRoutes() {
         Object.keys(endpoints.paths).map(async (routePath) => {
           const key = routePath;
           const routeObj = endpoints.paths[key];
-          const formattedPathString = key.replaceAll("{", ":").replaceAll("}", "");
+          let formattedPathString = key.replaceAll("{", ":").replaceAll("}", "");
+          if (formattedPathString === "/") {
+            formattedPathString = "";
+          }
           const methods = Object.keys(routeObj);
           await Promise.all(
             methods.map(async (method) => {
               const routeKey = `${installedApp.name}~${method}~${formattedPathString}`;
+              const methodDef = routeObj[method];
+
+              // Route middleware will run before any user executions has happened
+              // This will be a good spot for logging
+              const routeMiddleware = async (req, res, next) => {
+                next();
+              };
+
               const routeCallback = async (req, res) => {
                 try {
                   const environmentInterface = await prepareEnvironmentInterface(installedApp, appsJson, { req, res });
 
                   // This is where we can execute pre-operations
-                  const methodDef = routeObj[method];
                   const executionOps = await methodDef.execution({
                     req,
                     res,
@@ -320,9 +324,18 @@ async function buildRoutes() {
                   res.status(500).send({ sucess: false });
                 }
               };
+
+              const nothingFn = (_req, _res, next) => next();
+              const operationMiddleware =
+                methodDef?.middleware && typeof methodDef?.middleware === "function"
+                  ? (req, res, next) => methodDef?.middleware({ req, res, next, executeOperation: async (operation) => executeOperations([() => [operation]], installedApp.id) })
+                  : nothingFn;
+
               // This is a dynamic way of setting express's routes
               // server.get('/items', callback())
-              server[method](formattedPathString, routeCallback);
+              server[method](`/apps/${installedApp.name}${formattedPathString}`, routeMiddleware, operationMiddleware, routeCallback);
+
+              console.log(`Built route /apps/${installedApp.name}${formattedPathString}`);
             })
           );
         })
@@ -331,18 +344,12 @@ async function buildRoutes() {
   );
 }
 
-try {
-  await buildRoutes();
-} catch (err) {
-  console.log(err);
-}
-
 // Essential
 // Install request
 // Identification
-// Apps installed / available routes
-// Notifications
 // Profiles
+// Notifications
+// Apps installed / available routes
 // Logs
 // Permissions Requests
 
@@ -351,14 +358,23 @@ try {
 // Messages (between friends)
 // Friends
 
-async function installApp(uri) {
+async function installApp(uri, isLocal = false) {
   try {
-    // Make a fetch request for manifest JSON from the provided URI
-    const response = await fetch(uri);
-    if (!response.ok) {
-      throw new Error("Failed to fetch manifest JSON");
+    let manifest;
+
+    if (!isLocal) {
+      // Make a fetch request for manifest JSON from the provided URI
+      const response = await fetch(uri);
+      if (!response.ok) {
+        throw new Error("Failed to fetch manifest JSON");
+      }
+      manifest = await response.json();
+    } else {
+      // Read the file
+      const data = await fs.readFile(path.join(__dirname, uri), "utf-8");
+      const jsonData = JSON.parse(data);
+      manifest = jsonData;
     }
-    const manifest = await response.json();
 
     // Before completing next steps, here is where we need to make a request for permissions
     // For now, let's assume all permissions are accepted automatically
@@ -379,13 +395,23 @@ async function installApp(uri) {
     // Find the package URI from the "package_uri" field in the manifest
     const packageUri = manifest.package_uri;
 
-    // Make a fetch request to the JavaScript file and save it inside the folder we created
-    const appResponse = await fetch(packageUri);
-    if (!appResponse.ok) {
-      throw new Error("Failed to fetch app.js");
-    }
+    let appCode;
+    if (!isLocal) {
+      // Make a fetch request to the JavaScript file and save it inside the folder we created
+      const appResponse = await fetch(uri);
+      if (!appResponse.ok) {
+        throw new Error("Failed to fetch app.js");
+      }
 
-    const appCode = await appResponse.text();
+      appCode = await appResponse.text();
+    } else {
+      const navPieces = uri.split("/");
+      const removedManifestPath = navPieces.slice(0, navPieces.length - 1);
+      removedManifestPath.push(packageUri);
+      const newPath = path.join(__dirname, removedManifestPath.join("/"));
+      // Read the file
+      appCode = await fs.readFile(newPath, "utf-8");
+    }
 
     // Save app.js in the folder
     await fs.writeFile(path.join(installFolder, "app.js"), appCode);
@@ -494,7 +520,54 @@ server.get("/_meta/install", async (req, res) => {
   }
 });
 
+const CORE_APPS = {
+  users: {
+    manifest: "../deco-users/dist/manifest.json",
+  },
+};
+
+try {
+  await installApp(CORE_APPS.users.manifest, true);
+  await buildRoutes();
+} catch (err) {
+  console.log(err);
+}
+
+server.post("/_meta/users", async (req, res) => {
+  // What do we want to do for users?
+  // roles? is_owner, is_admin, detailsJSON
+  //    can store a flat object of "name.nickname" "address.primary.street_address_1"
+  // Support for webID information, extendable
+  // id, created_at, db_key, manage
+  // root domain will be for owner
+  // subdomains will be for tenants
+  //
+  // Steps
+  // 1. generate admin / owner user
+  // 2. allow only admins to create new users
+  // 3. admin can edit user permissions
+  // users shouldnt need a username, because the url is their username
+  //
+  // users will have to log in... how? link to personal?
+  // log in flow...
+  // enter your url endpoint
+  // app go POST to url/authorize, get a URL in response
+  // send user to URL
+  // 		if logged in, user can grant permissions, etc
+  // 		if logged out, log in then ^
+  // after acceptance or denial, redirect user back to app
+  //
+  // Do we want other services to be able to create users?
+  // How do we have things pass auth
+  // Middleware only triggered on a request
+});
+
 // Start the Express server
 server.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
+
+// admin dashboards
+// control users
+// auth + permissions
+// login
