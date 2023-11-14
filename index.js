@@ -6,20 +6,17 @@ import path from "path";
 import { v4 as uuid } from "uuid";
 import { fileURLToPath } from "url";
 import pgParse from "pgsql-parser";
+import vhost from "vhost";
+import morgan from "morgan";
 
 const { parse, deparse } = pgParse;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const APPS_FILE_PATH = path.join(__dirname, "apps.json");
-
 dotenv.config();
 
-const server = express();
-const port = process.env.PORT || 3000;
-
-server.use(express.json());
+const PORT = process.env.PORT || 3000;
 
 const { Pool } = pg;
 const client = new Pool({
@@ -34,30 +31,17 @@ client.connect();
 // Build apps.json if there is none
 async function loadAppsJson() {
   try {
-    // Check if apps.json already exists
-    const fileData = await fs.readFile(APPS_FILE_PATH, {
-      encoding: "utf8",
-    });
+    const { endpoints } = await import(`./installs/deco-apps/app.js`);
+    const execution = endpoints.paths["/"].get.execution;
 
-    const appsData = JSON.parse(fileData);
-
-    // If it exists, there's nothing to do
-    console.log("apps.json already exists.");
-
-    return appsData;
+    // This execution ONLY applies to this specific user app
+    const executionOps = await execution();
+    const { allApps } = await executeOperations(executionOps, CORE_APPS[CORE_KEYS.apps].id);
+    return allApps.rows;
   } catch (error) {
-    // If it doesn't exist, create it with the initial content
-    if (error.code === "ENOENT") {
-      const initialData = { installed_apps: [] };
-      const dataToWrite = JSON.stringify(initialData, null, 2);
-
-      await fs.writeFile(APPS_FILE_PATH, dataToWrite, "utf8");
-      console.log("apps.json created with initial data.");
-      return initialData;
-    } else {
-      // Handle other errors, if any
-      console.error("Error checking apps.json:", error);
-    }
+    console.log("Error loading apps table. Assuming it doesn't exist...");
+    // console.error(error);
+    return null;
   }
 }
 
@@ -104,13 +88,18 @@ function editRelnameWithId(obj, id) {
 async function executeOperations(operationsArr, appId, memory = {}, index = 0) {
   if (index === operationsArr.length) return memory;
   const executionLayer = operationsArr[index];
+  if (!executionLayer) return memory;
   const statementOps = await executionLayer(memory);
   if (!statementOps) return;
   await Promise.all(
     statementOps.map(async (statementOp) => {
       const { statement, data_key, values = [] } = statementOp;
+
       // use AST to parse out table name and append app's designated uuid
+      // multi-word table names have to use underscores or wrap the name in quotes
+      // for meta endpoints, we'll use underscores as a standard
       const ast = parse(statement);
+
       // Append the appId to the referenced tables
       editRelnameWithId(ast, appId);
       const newStatement = deparse(ast);
@@ -128,7 +117,7 @@ async function executeOperations(operationsArr, appId, memory = {}, index = 0) {
  * We'll also want to enable access to root stuff here like logs, profile, etc
  * We don't want apps to know about other apps it doesnt have permission to access
  */
-async function prepareEnvironmentInterface(app, appsJson, routeParams) {
+async function prepareEnvironmentInterface(app, apps, routeParams) {
   /**
    * Initial process is to take the granted_permissions and separate into each app
    * We fetch
@@ -140,7 +129,7 @@ async function prepareEnvironmentInterface(app, appsJson, routeParams) {
    * This will put all of an app's permissions in the same bucket
    * This will make the later import easier as we only have to do it once per app
    */
-  const requiredModulesObj = app.granted_permissions.reduce((acc, perm) => {
+  const requiredModulesObj = app.granted_permissions.granted.reduce((acc, perm) => {
     const appName = perm.app_name;
     if (!acc[appName]) {
       acc[appName] = { permissions: [], app_name: appName };
@@ -191,7 +180,7 @@ async function prepareEnvironmentInterface(app, appsJson, routeParams) {
     const flatOperations = flattenOpenApiJson(endpoints.paths);
 
     // Let's find the app we're working within
-    const referencedApp = appsJson.installed_apps.find((a) => a.name === appName);
+    const referencedApp = apps.find((a) => a.app_name === appName);
 
     /**
      * This is where we'll be able to append operations to our 'apps' object
@@ -202,7 +191,7 @@ async function prepareEnvironmentInterface(app, appsJson, routeParams) {
         const operation = flatOperations.find((op) => op.operationId === perm.key);
 
         if (operation) {
-          const possiblyRecursiveInterface = appName === app.name ? accumulator : prepareEnvironmentInterface(referencedApp, appsJson, routeParams);
+          const possiblyRecursiveInterface = appName === app.app_name ? accumulator : prepareEnvironmentInterface(referencedApp, apps, routeParams);
           accumulator[appName].operations[operation.operationId] = async () => {
             // Don't want to create an infinite loop
             const operationsArr = await operation.execution({
@@ -237,12 +226,24 @@ async function prepareEnvironmentInterface(app, appsJson, routeParams) {
   return environmentInterface;
 }
 
+async function authenticationMiddleware(req, res, next) {
+  // Determine route privacy
+  // How do we determine route privacy?
+  // We want it controllable per-user
+  // If not protected, send info
+  // If protected, break down cookie from request
+}
+
+// This will be passed to app middleware and execution functions
+function getExecuteOperationFunctionInAppContext(appId) {
+  return async (operation) => executeOperations([() => [operation]], appId);
+}
+
 /**
  * This function will construct our endpoints
  */
-async function buildRoutes() {
-  const appsJson = await loadAppsJson();
-  const installedApps = appsJson.installed_apps;
+async function buildRouteSubset({ server }) {
+  const apps = await loadAppsJson();
 
   // Flush old routes so that we can rebuild
   if (server._router) {
@@ -260,8 +261,8 @@ async function buildRoutes() {
   }
 
   await Promise.all(
-    installedApps.map(async (installedApp) => {
-      const modulePath = path.resolve(`./installs/${installedApp.name}/app.js`);
+    apps.map(async (installedApp) => {
+      const modulePath = path.resolve(`./installs/${installedApp.app_name}/app.js`);
 
       /**
        * TODO: Solve ESM dynamic import
@@ -277,6 +278,8 @@ async function buildRoutes() {
       const app = await import(modulePath);
 
       const endpoints = app.endpoints;
+      const executeOperationInAppContext = getExecuteOperationFunctionInAppContext(installedApp.id);
+
       await Promise.all(
         Object.keys(endpoints.paths).map(async (routePath) => {
           const key = routePath;
@@ -288,7 +291,7 @@ async function buildRoutes() {
           const methods = Object.keys(routeObj);
           await Promise.all(
             methods.map(async (method) => {
-              const routeKey = `${installedApp.name}~${method}~${formattedPathString}`;
+              const routeKey = `${installedApp.app_name}~${method}~${formattedPathString}`;
               const methodDef = routeObj[method];
 
               // Route middleware will run before any user executions has happened
@@ -299,14 +302,27 @@ async function buildRoutes() {
 
               const routeCallback = async (req, res) => {
                 try {
-                  const environmentInterface = await prepareEnvironmentInterface(installedApp, appsJson, { req, res });
+                  const environmentInterface = await prepareEnvironmentInterface(installedApp, apps, { req, res });
 
                   // This is where we can execute pre-operations
                   const executionOps = await methodDef.execution({
                     req,
                     res,
                     apps: environmentInterface,
+                    executeOperation: executeOperationInAppContext,
                   });
+
+                  // If a response is sent from within an execution context,
+                  // we don't want to resend anything
+                  if (typeof executionOps === "object") {
+                    // Check if it is of type `res`
+                    if (executionOps.hasOwnProperty("_headerSent")) {
+                      if (executionOps._headerSent) return;
+                      return res.status(500).send({ message: "Bad application code returned a response, but did not sent to the client." });
+                    }
+                  }
+
+                  // Make sure there is something to operate on
                   // if (executionOpsLength < 1)
 
                   const memory = await executeOperations(executionOps, installedApp.id);
@@ -316,6 +332,8 @@ async function buildRoutes() {
                       req,
                       res,
                       data: memory,
+                      apps: environmentInterface,
+                      executeOperations: executeOperationInAppContext,
                     });
                   }
                   res.status(200).send(memory);
@@ -328,14 +346,14 @@ async function buildRoutes() {
               const nothingFn = (_req, _res, next) => next();
               const operationMiddleware =
                 methodDef?.middleware && typeof methodDef?.middleware === "function"
-                  ? (req, res, next) => methodDef?.middleware({ req, res, next, executeOperation: async (operation) => executeOperations([() => [operation]], installedApp.id) })
+                  ? (req, res, next) => methodDef?.middleware({ req, res, next, executeOperation: executeOperationInAppContext })
                   : nothingFn;
 
               // This is a dynamic way of setting express's routes
               // server.get('/items', callback())
-              server[method](`/apps/${installedApp.name}${formattedPathString}`, routeMiddleware, operationMiddleware, routeCallback);
+              server[method](`/apps/${installedApp.app_name}${formattedPathString}`, routeMiddleware, operationMiddleware, routeCallback);
 
-              console.log(`Built route /apps/${installedApp.name}${formattedPathString}`);
+              console.log(`Built route ${method.toUpperCase()} /apps/${installedApp.app_name}${formattedPathString}`);
             })
           );
         })
@@ -344,21 +362,8 @@ async function buildRoutes() {
   );
 }
 
-// Essential
-// Install request
-// Identification
-// Profiles
-// Notifications
-// Apps installed / available routes
-// Logs
-// Permissions Requests
-
-// Optional
-// Open Inbox (email)
-// Messages (between friends)
-// Friends
-
-async function installApp(uri, isLocal = false) {
+async function installApp(uri, opts = {}) {
+  const { isLocal = false, coreKey, id } = opts;
   try {
     let manifest;
 
@@ -398,7 +403,7 @@ async function installApp(uri, isLocal = false) {
     let appCode;
     if (!isLocal) {
       // Make a fetch request to the JavaScript file and save it inside the folder we created
-      const appResponse = await fetch(uri);
+      const appResponse = await fetch(packageUri);
       if (!appResponse.ok) {
         throw new Error("Failed to fetch app.js");
       }
@@ -417,6 +422,29 @@ async function installApp(uri, isLocal = false) {
     await fs.writeFile(path.join(installFolder, "app.js"), appCode);
 
     const apps = await loadAppsJson();
+    const installations = await import("./installs/deco-apps/app.js");
+
+    if (!apps) {
+      const installOperations = await installations.onInstall({});
+      await executeOperations(installOperations, id);
+      const createExecution = installations.endpoints.paths["/"].post.execution;
+      const createOperations = await createExecution({
+        req: {
+          body: {
+            id,
+            app_name: manifest.name,
+            manifest_uri: uri,
+            granted_permissions: [],
+            core_key: coreKey,
+          },
+        },
+        executeOperation: getExecuteOperationFunctionInAppContext(id),
+      });
+      const firstEntry = await executeOperations(createOperations, id);
+
+      // Now that we have our table, let's run through the install again
+      return await installApp(uri, { isLocal, coreKey, id });
+    }
 
     // Theres a file called "apps.json" in this folder
     // Edit apps.json to append the necessary information
@@ -426,7 +454,9 @@ async function installApp(uri, isLocal = false) {
     // Load app package contents
     const appData = await import(appPath);
 
-    const existingApp = apps.installed_apps.find((a) => a.name === manifest.name);
+    const existingApp = apps.find((a) => a?.app_name === manifest.name);
+    const appId = existingApp?.id || id || uuid();
+    const installsAppId = CORE_APPS[CORE_KEYS.apps].id;
 
     const hasDependencies = manifest?.depends_on && manifest?.depends_on?.length > 0;
 
@@ -449,7 +479,11 @@ async function installApp(uri, isLocal = false) {
     const depPermissions = !hasDependencies
       ? []
       : manifest.depends_on.map((dep) => {
-          const referencedDep = apps.installed_apps.find((a) => a.manifest_uri === dep.manifest_uri);
+          // No dependencies on yourself
+          if (dep.manifest_uri === uri) {
+            return [];
+          }
+          const referencedDep = apps.find((a) => a.manifest_uri === dep.manifest_uri);
           const manifestName = referencedDep.name;
           const tablePermissions = dep.requested_permissions.tables.map((depTable) => ({
             type: "table",
@@ -464,25 +498,40 @@ async function installApp(uri, isLocal = false) {
           return [...tablePermissions, ...operationsPermissions];
         });
 
+    const grantedPermissions = [...metaPermissions, ...depPermissions.flat()];
+    const save = {
+      id: appId,
+      app_name: manifest.name,
+      manifest_uri: uri,
+      granted_permissions: grantedPermissions,
+      core_key: coreKey || "",
+    };
+
     // Remove existing version
     if (!!existingApp) {
-      apps.installed_apps = apps.installed_apps.filter((a) => a.name !== manifest.name);
+      const update = installations.endpoints.paths["/{id}"].patch.execution;
+      // This execution ONLY applies to this specific user app
+      const updateExecutionOps = await update({
+        req: {
+          params: { id: appId },
+          body: save,
+        },
+      });
+      await executeOperations(updateExecutionOps, installsAppId);
+    } else {
+      const createExecution = installations.endpoints.paths["/"].post.execution;
+      // This execution ONLY applies to this specific user app
+      const creationExecutionOps = await createExecution({
+        req: { body: save },
+        executeOperation: getExecuteOperationFunctionInAppContext(installsAppId),
+      });
+      const results = await executeOperations(creationExecutionOps, installsAppId);
     }
-
-    const appId = existingApp ? existingApp.id : uuid();
-
-    apps.installed_apps.push({
-      id: appId,
-      manifest: `./installs/${manifest.name}/manifest.json`, // Replace with your manifest file path
-      name: manifest.name,
-      manifest_uri: uri,
-      granted_permissions: [...metaPermissions, ...depPermissions.flat()],
-    });
 
     // Write the updated JSON content back to the file
     // The null and 2 parameters make the output pretty-printed with 2 spaces for indentation.
-    const output = JSON.stringify(apps, null, 2);
-    await fs.writeFile(APPS_FILE_PATH, output, "utf8");
+    // const output = JSON.stringify(apps, null, 2);
+    // await fs.writeFile(APPS_FILE_PATH, output, "utf8");
 
     if (!existingApp) {
       // Execute the onInstall command
@@ -498,42 +547,114 @@ async function installApp(uri, isLocal = false) {
   }
 }
 
-// Imagine someone is looking through an app store and clicks "install"
-// We can send a request to this endpoint
-// Logic can be reused when an app requests an app be installed
-server.get("/_meta/install", async (req, res) => {
-  try {
-    console.log("Installing app...");
-    await installApp("http://localhost:4321/manifest.json");
+// Essential
+// Install request
+// Identification
+// Profiles
+// Notifications
+// Apps installed / available routes
+// Logs
+// Permissions Requests
 
-    console.log("Rebuilding routes...");
-    // At this point, we have to do a teardown and rebuild of the server routes
+// Optional
+// Open Inbox (email)
+// Messages (between friends)
+// Friends
 
-    await buildRoutes();
-
-    console.log("Routes rebuilt successfully.");
-    return res.status(200).send({ success: true });
-  } catch (err) {
-    console.log("App installation failed.");
-    console.log(err);
-    return res.status(500).send({ success: false });
-  }
-});
+// Apps with specific rules that have to be installed for the server to function correctly
+const CORE_KEYS = {
+  users: "users",
+  apps: "apps",
+  logs: "logs",
+  permissionRequests: "permission-requests",
+  permissions: "permissions",
+  notifications: "notifications",
+};
 
 const CORE_APPS = {
-  users: {
-    manifest: "../deco-users/dist/manifest.json",
+  [CORE_KEYS.users]: {
+    manifest: {
+      path: "../deco-users/dist/manifest.json",
+    },
+  },
+  [CORE_KEYS.apps]: {
+    id: "aa3d07b0-3042-44ea-b6b9-b30e3437a449",
+    manifest: {
+      path: "../deco-apps/dist/manifest.json",
+    },
   },
 };
 
+async function createOwnerIfNotThereAlready() {
+  const apps = await loadAppsJson();
+  const usersApp = apps.find((a) => a.core_key === CORE_KEYS.users);
+  const { endpoints } = await import(`./installs/${usersApp.app_name}/app.js`);
+  const getExecution = endpoints.paths["/"].get.execution;
+  const getExecutionOps = await getExecution();
+  const usersFetch = await executeOperations(getExecutionOps, usersApp.id);
+  const allUsers = usersFetch.allUsers.rows;
+  if (allUsers && allUsers?.length > 0) return;
+  const postExecution = endpoints.paths["/"].post.execution;
+  const postExecutionOps = await postExecution({ req: { body: { password: "kellykevinlindsaynickjill", subdomain: "root" } }, res: { locals: {} } });
+  const results = await executeOperations(postExecutionOps, usersApp.id);
+  console.log("New owner created.");
+  return results;
+}
+
+async function buildRoutes(mainServer) {
+  // For each user, let's build our route subset
+  const apps = await loadAppsJson();
+  const usersApp = apps.find((a) => a.core_key === CORE_KEYS.users);
+  const { endpoints } = await import(`./installs/${usersApp.app_name}/app.js`);
+  const execution = endpoints.paths["/"].get.execution;
+  // This execution ONLY applies to this specific user app
+  const executionOps = await execution();
+  const results = await executeOperations(executionOps, usersApp.id);
+  const users = results["allUsers"].rows;
+  const subservers = await Promise.all(
+    users.map(async (user) => {
+      const hasSubdomain = !!user.subdomain && user.subdomain !== "root";
+      const serverInstance = hasSubdomain ? express() : mainServer;
+
+      // Here we have to generate per-user meta routes like
+      // POST _meta/access-request
+      // *    _meta/logs
+      // GET  _meta/id /profile
+      // *    _meta/installs /install-requests (if allowed)
+      // *    _meta/ai
+
+      serverInstance.use(morgan("tiny"));
+      serverInstance.use(express.json());
+
+      await buildRouteSubset({ server: serverInstance });
+
+      // Append server instance to subdomain resolution
+      if (hasSubdomain) {
+        mainServer.use(vhost(`${user.subdomain}.localhost`, serverInstance));
+      }
+
+      return { server: serverInstance, user };
+    })
+  );
+  return subservers;
+}
+
+const server = express();
+
 try {
-  await installApp(CORE_APPS.users.manifest, true);
-  await buildRoutes();
+  await installApp(CORE_APPS[CORE_KEYS.apps].manifest.path, { isLocal: true, coreKey: CORE_KEYS.apps, id: CORE_APPS[CORE_KEYS.apps].id });
+  await installApp(CORE_APPS[CORE_KEYS.users].manifest.path, { isLocal: true, coreKey: CORE_KEYS.users });
+  await buildRoutes(server);
+  await createOwnerIfNotThereAlready();
+  server.listen(PORT, () => {
+    console.log(`Server is running on http://localhost:${PORT}`);
+  });
 } catch (err) {
   console.log(err);
 }
 
-server.post("/_meta/users", async (req, res) => {
+// This is where we setup meta endpoints at the server level (not per-user)
+server.get("/_meta/directory", async (req, res) => {
   // What do we want to do for users?
   // roles? is_owner, is_admin, detailsJSON
   //    can store a flat object of "name.nickname" "address.primary.street_address_1"
@@ -562,9 +683,26 @@ server.post("/_meta/users", async (req, res) => {
   // Middleware only triggered on a request
 });
 
-// Start the Express server
-server.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+// Imagine someone is looking through an app store and clicks "install"
+// We can send a request to this endpoint
+// Logic can be reused when an app requests an app be installed
+server.get("/_meta/install", async (req, res) => {
+  try {
+    console.log("Installing app...");
+    await installApp("http://localhost:4321/manifest.json");
+
+    console.log("Rebuilding routes...");
+    // At this point, we have to do a teardown and rebuild of the server routes
+
+    await buildRoutes();
+
+    console.log("Routes rebuilt successfully.");
+    return res.status(200).send({ success: true });
+  } catch (err) {
+    console.log("App installation failed.");
+    console.log(err);
+    return res.status(500).send({ success: false });
+  }
 });
 
 // admin dashboards

@@ -29,11 +29,18 @@
       ]
     },
     {
-      "id": "34fc70f9-15dc-4712-bd8b-418b71e05eca",
-      "manifest": "./installs/deco-users/manifest.json",
+      "id": "c7ba9483-d830-49e8-b895-f0252bfe01ab",
       "name": "deco-users",
       "manifest_uri": "../deco-users/dist/manifest.json",
-      "granted_permissions": []
+      "granted_permissions": [],
+      "core_key": "users"
+    },
+    {
+      "id": "bc4afbc7-f973-4df0-bb31-86913cd73bd4",
+      "name": "deco-apps",
+      "manifest_uri": "../deco-apps/dist/manifest.json",
+      "granted_permissions": [],
+      "core_key": "apps"
     }
   ]
 }
