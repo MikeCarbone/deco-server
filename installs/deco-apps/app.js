@@ -4,7 +4,15 @@ const s = () => ({
   installed_apps: {
     table_name: "installed_apps"
   }
-}), c = () => [
+}), d = (t) => ({
+  routes: t.map((e) => ({
+    path: e.path,
+    method: e.method,
+    summary: e == null ? void 0 : e.summary,
+    operation_id: e == null ? void 0 : e.operationId,
+    privacy: "PRIVATE"
+  }))
+}), y = () => [
   () => [
     {
       statement: `CREATE TABLE installed_apps (
@@ -20,41 +28,42 @@ const s = () => ({
       values: []
     }
   ]
-], u = {
+], R = {
   paths: {
     "/": {
       post: {
         summary: "Create a record of an app installation",
         operationId: "createInstallationRecord",
-        execution: async ({ req: e, res: t, executeOperation: n }) => {
-          console.log("Creating record...", n);
+        execution: async ({ req: t, res: e, runStatement: n }) => {
           const a = (await n({
             statement: `SELECT * FROM ${s().installed_apps.table_name} WHERE app_name=$1`,
             data_key: "existingApps",
-            values: [e.body.app_name]
+            values: [t.body.app_name]
           })).existingApps.rows;
           if (a != null && a.length)
-            return t.status(400).send({ message: "App name already exists." });
+            return e.status(400).send({ message: "App name already exists." });
           const {
-            id: i,
-            app_name: o,
-            manifest_uri: p,
-            granted_permissions: d = [],
-            core_key: l
-          } = e.body, m = { granted: d };
+            id: r,
+            app_name: i,
+            manifest_uri: o,
+            granted_permissions: l = [],
+            core_key: m,
+            routes: u
+          } = t.body, c = d(u), _ = { granted: l };
           return [
             // Function to pass results from one sync operation to another
             // First will be empty of course
             () => [
               {
-                statement: `INSERT INTO ${s().installed_apps.table_name} (id, app_name, manifest_uri, granted_permissions, core_key) VALUES ($1, $2, $3, $4, $5)`,
+                statement: `INSERT INTO ${s().installed_apps.table_name} (id, app_name, manifest_uri, granted_permissions, core_key, routes) VALUES ($1, $2, $3, $4, $5, $6)`,
                 data_key: "newUser",
                 values: [
+                  r,
                   i,
                   o,
-                  p,
+                  _,
                   m,
-                  l
+                  c
                 ]
               }
             ]
@@ -82,8 +91,8 @@ const s = () => ({
       delete: {
         summary: "Delete an app installation record",
         operationId: "deleteInstallationRecord",
-        execution: ({ req: e }) => {
-          const { id: t } = e.params;
+        execution: ({ req: t }) => {
+          const { id: e } = t.params;
           return [
             // Function to pass results from one sync operation to another
             // First will be empty of course
@@ -91,7 +100,7 @@ const s = () => ({
               {
                 statement: `DELETE FROM ${s().installed_apps.table_name} WHERE id = $1;`,
                 data_key: "deletedInstallationRecord",
-                values: [t]
+                values: [e]
               }
             ]
           ];
@@ -100,21 +109,27 @@ const s = () => ({
       patch: {
         summary: "Update an app installation record",
         operationId: "updateInstallationRecord",
-        execution: ({ req: e }) => {
-          const { id: t } = e.params, { manifest_uri: n, granted_permissions: r, core_key: a } = e.body;
+        execution: ({ req: t }) => {
+          const { id: e } = t.params, {
+            manifest_uri: n,
+            granted_permissions: p,
+            core_key: a,
+            routes: r
+          } = t.body, i = { granted: p }, o = d(r);
           return [
             // Function to pass results from one sync operation to another
             // First will be empty of course
             () => [
               {
-                statement: `UPDATE ${s().installed_apps.table_name} SET manifest_uri = $2, granted_permissions = $3, core_key = $4
+                statement: `UPDATE ${s().installed_apps.table_name} SET manifest_uri = $2, granted_permissions = $3, core_key = $4, routes = $5
 									WHERE id = $1;`,
                 data_key: "deletedInstallationRecord",
                 values: [
-                  t,
+                  e,
                   n,
-                  r,
-                  a
+                  i,
+                  a,
+                  o
                 ]
               }
             ]
@@ -185,11 +200,11 @@ const s = () => ({
       }
     }
   }
-}, _ = () => {
+}, E = () => {
 };
 export {
-  u as endpoints,
-  c as onInstall,
-  _ as postInstall,
+  R as endpoints,
+  y as onInstall,
+  E as postInstall,
   s as tables
 };

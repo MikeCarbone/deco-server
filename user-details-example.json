@@ -1,0 +1,37 @@
+{
+  "identities": [
+    {
+      "name.first": "Mike",
+      "name.middle": "Frank",
+      "name.last": "Doe",
+      "name.nicknames": ["Johnny", "JD"],
+      "about.birthday": "1980-01-01",
+      "address.street": "123 Main St",
+      "address.city": "Cityville",
+      "address.state": "CA",
+      "address.zip": "12345",
+      "address.country": "USA",
+      "contact.email": "john.doe@example.com",
+      "contact.phone": "+1 (555) 555-5555",
+      "social.twitter": "@johndoe",
+      "social.github": "@johndoe",
+      "social.facebook": "@johndoe",
+      "social.linkedin": "https://linkedin.com/mike-carbone",
+      "about.gender": "Male",
+      "about.nationality": "American",
+      "about.description": "Building systems",
+      "about.occupation": "Software Engineer",
+      "about.occupation.company.name": "TechCo Inc.",
+      "about.occupation.company.webid": "",
+      "education.degree": "Bachelor's in Computer Science",
+      "education.school.": "University of Tech",
+      "hobbies": ["Reading", "Hiking", "Photography"],
+      "languages.speak": ["English", "Spanish"],
+      "languages.read": ["English", "Spanish"],
+      "languages.write": ["English", "Spanish"],
+      "emergency_contact.name": "Jane Doe",
+      "emergency_contact.relationship": "Spouse",
+      "emergency_contact.phone": "+1 (555) 555-1234"
+    }
+  ]
+}

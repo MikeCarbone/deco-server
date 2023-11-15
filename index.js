@@ -29,7 +29,7 @@ const client = new Pool({
 client.connect();
 
 // Build apps.json if there is none
-async function loadAppsJson() {
+async function loadApps() {
   try {
     const { endpoints } = await import(`./installs/deco-apps/app.js`);
     const execution = endpoints.paths["/"].get.execution;
@@ -117,7 +117,7 @@ async function executeOperations(operationsArr, appId, memory = {}, index = 0) {
  * We'll also want to enable access to root stuff here like logs, profile, etc
  * We don't want apps to know about other apps it doesnt have permission to access
  */
-async function prepareEnvironmentInterface(app, apps, routeParams) {
+async function prepareEnvironmentInterface(app, apps) {
   /**
    * Initial process is to take the granted_permissions and separate into each app
    * We fetch
@@ -191,8 +191,8 @@ async function prepareEnvironmentInterface(app, apps, routeParams) {
         const operation = flatOperations.find((op) => op.operationId === perm.key);
 
         if (operation) {
-          const possiblyRecursiveInterface = appName === app.app_name ? accumulator : prepareEnvironmentInterface(referencedApp, apps, routeParams);
-          accumulator[appName].operations[operation.operationId] = async () => {
+          const possiblyRecursiveInterface = appName === app.app_name ? accumulator : prepareEnvironmentInterface(referencedApp, apps);
+          accumulator[appName].operations[operation.operationId] = async (routeParams) => {
             // Don't want to create an infinite loop
             const operationsArr = await operation.execution({
               ...routeParams,
@@ -219,15 +219,112 @@ async function prepareEnvironmentInterface(app, apps, routeParams) {
   }, {});
 
   // Let's append current app information too...
-  environmentInterface["_current"] = {};
-  environmentInterface["_current"].id = app.id;
-  environmentInterface["_current"].secrets = [{}];
+  environmentInterface["_current-app"] = {};
+  environmentInterface["_current-app"].id = app.id;
+  environmentInterface["_current-app"].secrets = [{}];
 
   return environmentInterface;
 }
 
-async function authenticationMiddleware(req, res, next) {
-  // Determine route privacy
+/**
+ * FOUR METHODS OF ACCESS
+ * 1. public route as configured by owner
+ * 2. TODO: cookie for local access
+ * 3. per-domain authorization
+ * 4. TODO: API token authorization header
+ */
+async function authenticationMiddleware(req, res, next, app, permissionsAppId) {
+  return next();
+  const templateRoutePath = req.route.path;
+  const formattedRoutePath = templateRoutePath.replace(/:(\w+)/g, "{$1}");
+  const identifier = "/" + formattedRoutePath.split("/").slice(3).join("/");
+  const activeRoute = app.routes.routes.filter((r) => r.path === identifier).find((r) => r.method.toUpperCase() === req.method.toUpperCase());
+  const privacySetting = activeRoute.privacy;
+
+  // Determine route privacy -- public or private
+  const isPublicRoute = privacySetting.toUpperCase() === "PUBLIC";
+
+  if (isPublicRoute) {
+    return next();
+  }
+
+  // If private, continue authentication
+
+  // Identify request source from req, including subdomains, not including protocol
+  const requestSource = req.get("host").split(".")[0];
+
+  // Check to see if permission record exists for this
+  const { endpoints } = await import("./installs/deco-permissions/app.js");
+  const permissionFetch = endpoints.paths["/"].get.execution;
+  // This execution ONLY applies to this specific user app
+  const permissionFetchOps = await permissionFetch({
+    req: {
+      query: {
+        domain: requestSource,
+        resource: identifier,
+        method: req.method,
+      },
+    },
+  });
+  const { permissions } = await executeOperations(permissionFetchOps, permissionsAppId);
+  if (permissions?.rows?.length > 0) {
+    const permissionDoc = permissions.rows[0];
+    // Permission granted and expiration is in the future
+    const expirationDate = new Date(permissionDoc.expires);
+    const now = new Date();
+    if (expirationDate > now) {
+      console.log("Permission doc found, access granted.");
+      return next();
+    }
+  }
+
+  // Identify if there is a cookie in req.cookies
+  const cookieToken = req.cookies?.token;
+
+  // If there is a cookie, validate it as jwt
+  if (cookieToken) {
+    try {
+      // const decodedToken = jwt.verify(cookieToken, "your-secret-key");
+      // req.user = decodedToken; // Attach the user to the request for further use
+      // return next();
+    } catch (error) {
+      return res.status(401).json({ message: "Invalid token in cookie" });
+    }
+  }
+
+  // If there is no cookie, check for bearer token in authorization header
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.split(" ")[1];
+    try {
+      const decodedToken = jwt.verify(token, "your-secret-key");
+      req.user = decodedToken; // Attach the user to the request for further use
+      return next();
+    } catch (error) {
+      return res.status(401).json({ message: "Invalid Bearer token" });
+    }
+  }
+
+  // If there is not a token in authorization header, check if we have this domain saved
+  // Replace the logic below with your actual logic for checking the domain
+  if (requestSource === "allowedDomain") {
+    return next();
+  }
+
+  // If none of the conditions are met, deny access
+  return res.status(401).json({ message: "No pass. Unauthorized." });
+
+  // Determine route privacy -- public or private
+  // If public, return next()
+  // If private, continue authentication
+  // Identify request source from req, including subdomains, not including protocol
+  // Identify if there is a cookie in req.cookies
+  // If there is a cookie, validate it as jwt
+  // If there is no cookie, check for bearer token in authorization header
+  // If there is a token in authorization header, validate it as JWT
+  // If there is not token in authorization header, check if we have this domain saved
+  // If we do grant access
+  //
   // How do we determine route privacy?
   // We want it controllable per-user
   // If not protected, send info
@@ -235,15 +332,21 @@ async function authenticationMiddleware(req, res, next) {
 }
 
 // This will be passed to app middleware and execution functions
+// This lets us run execution for a single statement
 function getExecuteOperationFunctionInAppContext(appId) {
   return async (operation) => executeOperations([() => [operation]], appId);
+}
+
+// Provides us with context to run a route statement from within an app
+function getParallelRouteExecutionContext(appId) {
+  return async (operation) => executeOperations(operation, appId);
 }
 
 /**
  * This function will construct our endpoints
  */
 async function buildRouteSubset({ server }) {
-  const apps = await loadAppsJson();
+  const apps = await loadApps();
 
   // Flush old routes so that we can rebuild
   if (server._router) {
@@ -279,15 +382,22 @@ async function buildRouteSubset({ server }) {
 
       const endpoints = app.endpoints;
       const executeOperationInAppContext = getExecuteOperationFunctionInAppContext(installedApp.id);
+      const executeParallelRoute = getParallelRouteExecutionContext(installedApp.id);
+
+      // Let's assemble our route's environment interface as a static object
+      // We only have to do this once per app's route generation
+      const environmentInterface = await prepareEnvironmentInterface(installedApp, apps);
 
       await Promise.all(
         Object.keys(endpoints.paths).map(async (routePath) => {
-          const key = routePath;
-          const routeObj = endpoints.paths[key];
-          let formattedPathString = key.replaceAll("{", ":").replaceAll("}", "");
+          const routeObj = endpoints.paths[routePath];
+
+          // Format OpenAPI params format `/{param}` into Express format `/:param`
+          let formattedPathString = routePath.replaceAll("{", ":").replaceAll("}", "");
           if (formattedPathString === "/") {
             formattedPathString = "";
           }
+
           const methods = Object.keys(routeObj);
           await Promise.all(
             methods.map(async (method) => {
@@ -302,14 +412,13 @@ async function buildRouteSubset({ server }) {
 
               const routeCallback = async (req, res) => {
                 try {
-                  const environmentInterface = await prepareEnvironmentInterface(installedApp, apps, { req, res });
-
                   // This is where we can execute pre-operations
                   const executionOps = await methodDef.execution({
                     req,
                     res,
                     apps: environmentInterface,
-                    executeOperation: executeOperationInAppContext,
+                    runStatement: executeOperationInAppContext,
+                    runRoute: executeParallelRoute,
                   });
 
                   // If a response is sent from within an execution context,
@@ -333,7 +442,8 @@ async function buildRouteSubset({ server }) {
                       res,
                       data: memory,
                       apps: environmentInterface,
-                      executeOperations: executeOperationInAppContext,
+                      runStatement: executeOperationInAppContext,
+                      runRoute: executeParallelRoute,
                     });
                   }
                   res.status(200).send(memory);
@@ -346,12 +456,23 @@ async function buildRouteSubset({ server }) {
               const nothingFn = (_req, _res, next) => next();
               const operationMiddleware =
                 methodDef?.middleware && typeof methodDef?.middleware === "function"
-                  ? (req, res, next) => methodDef?.middleware({ req, res, next, executeOperation: executeOperationInAppContext })
+                  ? (req, res, next) => methodDef?.middleware({ req, res, next, runStatement: executeOperationInAppContext, runRoute: executeParallelRoute })
                   : nothingFn;
 
+              // Let's get this while we have everything here
+              // Authentication middleware needs this ID because it has to execute a GET from the permissions app context
+              // Might as well pas it in here while we have it
+              const permissionsAppId = apps.find((a) => a.core_key === CORE_KEYS.permissions).id;
+
               // This is a dynamic way of setting express's routes
-              // server.get('/items', callback())
-              server[method](`/apps/${installedApp.app_name}${formattedPathString}`, routeMiddleware, operationMiddleware, routeCallback);
+              // e.g. server.get('/items', callback())
+              server[method](
+                `/apps/${installedApp.app_name}${formattedPathString}`,
+                (req, res, next) => authenticationMiddleware(req, res, next, installedApp, permissionsAppId),
+                routeMiddleware,
+                operationMiddleware,
+                routeCallback
+              );
 
               console.log(`Built route ${method.toUpperCase()} /apps/${installedApp.app_name}${formattedPathString}`);
             })
@@ -421,7 +542,7 @@ async function installApp(uri, opts = {}) {
     // Save app.js in the folder
     await fs.writeFile(path.join(installFolder, "app.js"), appCode);
 
-    const apps = await loadAppsJson();
+    const apps = await loadApps();
     const installations = await import("./installs/deco-apps/app.js");
 
     if (!apps) {
@@ -436,11 +557,13 @@ async function installApp(uri, opts = {}) {
             manifest_uri: uri,
             granted_permissions: [],
             core_key: coreKey,
+            routes: flattenOpenApiJson(installations.endpoints.paths),
           },
         },
-        executeOperation: getExecuteOperationFunctionInAppContext(id),
+        runStatement: getExecuteOperationFunctionInAppContext(id),
+        runRoute: getParallelRouteExecutionContext(id),
       });
-      const firstEntry = await executeOperations(createOperations, id);
+      await executeOperations(createOperations, id);
 
       // Now that we have our table, let's run through the install again
       return await installApp(uri, { isLocal, coreKey, id });
@@ -484,12 +607,14 @@ async function installApp(uri, opts = {}) {
             return [];
           }
           const referencedDep = apps.find((a) => a.manifest_uri === dep.manifest_uri);
-          const manifestName = referencedDep.name;
-          const tablePermissions = dep.requested_permissions.tables.map((depTable) => ({
-            type: "table",
-            key: depTable.id,
-            app_name: manifestName,
-          }));
+          const manifestName = referencedDep.app_name;
+          const tablePermissions = dep.requested_permissions.tables
+            ? dep.requested_permissions.tables.map((depTable) => ({
+                type: "table",
+                key: depTable.id,
+                app_name: manifestName,
+              }))
+            : [];
           const operationsPermissions = dep.requested_permissions.operations.map((depOp) => ({
             type: "operation",
             key: depOp.id,
@@ -499,12 +624,13 @@ async function installApp(uri, opts = {}) {
         });
 
     const grantedPermissions = [...metaPermissions, ...depPermissions.flat()];
-    const save = {
+    const saveData = {
       id: appId,
       app_name: manifest.name,
       manifest_uri: uri,
       granted_permissions: grantedPermissions,
       core_key: coreKey || "",
+      routes: flattenOpenApiJson(appData.endpoints.paths),
     };
 
     // Remove existing version
@@ -514,7 +640,7 @@ async function installApp(uri, opts = {}) {
       const updateExecutionOps = await update({
         req: {
           params: { id: appId },
-          body: save,
+          body: saveData,
         },
       });
       await executeOperations(updateExecutionOps, installsAppId);
@@ -522,10 +648,11 @@ async function installApp(uri, opts = {}) {
       const createExecution = installations.endpoints.paths["/"].post.execution;
       // This execution ONLY applies to this specific user app
       const creationExecutionOps = await createExecution({
-        req: { body: save },
-        executeOperation: getExecuteOperationFunctionInAppContext(installsAppId),
+        req: { body: saveData },
+        runStatement: getExecuteOperationFunctionInAppContext(installsAppId),
+        runRoute: getParallelRouteExecutionContext(installsAppId),
       });
-      const results = await executeOperations(creationExecutionOps, installsAppId);
+      await executeOperations(creationExecutionOps, installsAppId);
     }
 
     // Write the updated JSON content back to the file
@@ -537,7 +664,7 @@ async function installApp(uri, opts = {}) {
       // Execute the onInstall command
       if (appData.onInstall) {
         const installOperations = await appData.onInstall({});
-        const data = await executeOperations(installOperations, appId);
+        await executeOperations(installOperations, appId);
       }
     }
 
@@ -577,7 +704,20 @@ const CORE_APPS = {
       path: "../deco-users/dist/manifest.json",
     },
   },
+  [CORE_KEYS.permissions]: {
+    manifest: {
+      path: "../deco-permissions/dist/manifest.json",
+    },
+  },
+  [CORE_KEYS.permissionRequests]: {
+    manifest: {
+      path: "../deco-permission-requests/dist/manifest.json",
+    },
+  },
   [CORE_KEYS.apps]: {
+    // We have to create this ID first so that we can run the installApp function
+    // Ideally this ID gets a static generation upon first server build. It should not change
+    // when the server restarts, so running a function here will not work
     id: "aa3d07b0-3042-44ea-b6b9-b30e3437a449",
     manifest: {
       path: "../deco-apps/dist/manifest.json",
@@ -585,8 +725,39 @@ const CORE_APPS = {
   },
 };
 
+const PER_USER_META_ROUTES = {
+  paths: {
+    // Logging in will enable a user to access their resources from sub-URLs
+    "/_meta/login": {
+      post: {
+        summary: "Login a user",
+        operationId: "loginUser",
+        execution: ({ req, res }) => {
+          // sendCookie
+          // const options = { expiresIn: '365d' };
+          const payload = {
+            user: req.user,
+            fromApp: true,
+          };
+          const authToken = jwt.sign(payload, process.env.AUTH_SECRET, options);
+          res.setHeader(
+            "Set-Cookie",
+            cookie.serialize("XSRF-TOKEN", authToken, {
+              httpOnly: true,
+              sameSite: "Lax",
+              path: "/",
+              secure: process.env.MODE === "dev" ? false : true,
+              maxAge: 60 * 60 * 24 * 7 * 52, // 1 year
+            })
+          );
+        },
+      },
+    },
+  },
+};
+
 async function createOwnerIfNotThereAlready() {
-  const apps = await loadAppsJson();
+  const apps = await loadApps();
   const usersApp = apps.find((a) => a.core_key === CORE_KEYS.users);
   const { endpoints } = await import(`./installs/${usersApp.app_name}/app.js`);
   const getExecution = endpoints.paths["/"].get.execution;
@@ -603,7 +774,7 @@ async function createOwnerIfNotThereAlready() {
 
 async function buildRoutes(mainServer) {
   // For each user, let's build our route subset
-  const apps = await loadAppsJson();
+  const apps = await loadApps();
   const usersApp = apps.find((a) => a.core_key === CORE_KEYS.users);
   const { endpoints } = await import(`./installs/${usersApp.app_name}/app.js`);
   const execution = endpoints.paths["/"].get.execution;
@@ -622,6 +793,8 @@ async function buildRoutes(mainServer) {
       // GET  _meta/id /profile
       // *    _meta/installs /install-requests (if allowed)
       // *    _meta/ai
+      // POST _meta/login
+      // POST _meta/change-password
 
       serverInstance.use(morgan("tiny"));
       serverInstance.use(express.json());
@@ -644,6 +817,8 @@ const server = express();
 try {
   await installApp(CORE_APPS[CORE_KEYS.apps].manifest.path, { isLocal: true, coreKey: CORE_KEYS.apps, id: CORE_APPS[CORE_KEYS.apps].id });
   await installApp(CORE_APPS[CORE_KEYS.users].manifest.path, { isLocal: true, coreKey: CORE_KEYS.users });
+  await installApp(CORE_APPS[CORE_KEYS.permissions].manifest.path, { isLocal: true, coreKey: CORE_KEYS.permissions });
+  await installApp(CORE_APPS[CORE_KEYS.permissionRequests].manifest.path, { isLocal: true, coreKey: CORE_KEYS.permissionRequests });
   await buildRoutes(server);
   await createOwnerIfNotThereAlready();
   server.listen(PORT, () => {
@@ -694,7 +869,7 @@ server.get("/_meta/install", async (req, res) => {
     console.log("Rebuilding routes...");
     // At this point, we have to do a teardown and rebuild of the server routes
 
-    await buildRoutes();
+    await buildRoutes(server);
 
     console.log("Routes rebuilt successfully.");
     return res.status(200).send({ success: true });

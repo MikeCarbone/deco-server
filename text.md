@@ -1,3 +1,25 @@
+QUESTIONS:
+
+- Making endpoint executions usable outside endpoint context
+
+  - What if we want to call them as functions without sending stuff? For internal use / AI
+
+- Handling multi-user installs
+
+  - We allow per-user apps, but we don't have per-user installs folder
+  - How do we handle different versions?
+    - One version per server so all users work with the same version
+    - Server admin manages upgrades
+
+- Why do we have per-user apps?
+  - What if one user wants to use X but another user does not
+  - Handle route permissions, like exposing public / private endpoints per-user
+
+3rd Party Permissions vs. Installed App Permissions
+
+- 3rd party can come from anywhere -- other servers, other people, apps, websites...
+- Installed app permissions comes from installed apps and populates the env interface
+
 We're building the most powerful AI assistant network in the world.
 
 The next era of personal computing hinges on seamlessly integrating AI into our daily lives. The introduction of ChatGPT marked a turning point, altering our expectations of what computers can achieve. Today, existing tools fall short with limited access to cross-app information. An advanced personal AI depends on seamless bidirectional interactivity across apps.

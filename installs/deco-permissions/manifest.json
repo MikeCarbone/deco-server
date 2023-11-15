@@ -1,0 +1,23 @@
+{
+  "name": "deco-permissions",
+  "version": "0.1",
+  "manifest_uri": "http://localhost:4321/manifest.json",
+  "package_uri": "./app.js",
+  "publisher": "https://carbonemike.com/webid",
+  "protocol": "deco",
+  "images": {
+    "cover": "",
+    "logo": ""
+  },
+  "meta_access": [],
+  "depends_on": [],
+  "options": {},
+  "options_uri": "https://carbonemike.com/to-do-options.json",
+  "past_versions": [
+    {
+      "version": "",
+      "manifest_uri": "http://"
+    }
+  ],
+  "new_versions": []
+}

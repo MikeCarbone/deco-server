@@ -50,9 +50,6 @@ export const endpoints = {
 				operationId: "getTodos",
 				// By default will return JSON of the returnedObjectName
 				execution: async ({ req, res, user, apps }) => {
-					console.log(apps);
-					const todos = await apps.something.operations.createTodo();
-					console.log("t", todos);
 					return [
 						() => {
 							// Interact with third party apps

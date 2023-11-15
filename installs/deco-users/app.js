@@ -1,4 +1,4 @@
-import o from "crypto";
+import n from "crypto";
 const d = () => ({
   // Key can be anything, but should be reflective of the table name
   // this will be accessible via apps.appName.tables.tableName.modify()
@@ -15,7 +15,7 @@ const d = () => ({
 						is_owner BOOLEAN DEFAULT false,
 						permissions JSONB,
 						user_details JSONB,
-						subdomain VARCHAR(75) UNIQUE,
+						subdomain VARCHAR(75) UNIQUE DEFAULT root,
 						created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 					);`,
       data_key: "usersTable",
@@ -28,17 +28,17 @@ const d = () => ({
       post: {
         summary: "Create a server user",
         operationId: "createUser",
-        middleware: async ({ res: t, next: s, executeOperation: r }) => {
+        middleware: async ({ res: t, next: s, runStatement: r }) => {
           const e = (await r({
             statement: "SELECT * FROM users",
             data_key: "users",
             values: []
-          })).users.rows, n = !e || !e.length;
-          if (n)
+          })).users.rows, o = !e || !e.length;
+          if (o)
             console.log("No users, no protection");
           else
             return console.log("Users exist, let's protect."), t.status(401).send({ message: "Authentication required." });
-          return t.locals.isFirstUser = n, s();
+          return t.locals.isFirstUser = o, s();
         },
         execution: async ({ req: t, res: s }) => {
           const { password: r, subdomain: a } = t.body, { isFirstUser: e } = s.locals;
@@ -50,7 +50,7 @@ const d = () => ({
             return s.status(400).send({
               message: "First user should not have a subdomain."
             });
-          const n = o.randomBytes(16).toString("hex"), i = o.scryptSync(r, n, 32).toString("hex");
+          const o = n.randomBytes(16).toString("hex"), i = n.scryptSync(r, o, 32).toString("hex");
           return [
             // Function to pass results from one sync operation to another
             // First will be empty of course
@@ -61,7 +61,7 @@ const d = () => ({
                 values: [
                   a,
                   i,
-                  n,
+                  o,
                   !!e,
                   {},
                   {}
