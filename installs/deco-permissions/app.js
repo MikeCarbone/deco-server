@@ -1,10 +1,10 @@
-const n = () => ({
+const d = () => ({
   // Key can be anything, but should be reflective of the table name
   // this will be accessible via apps.appName.tables.tableName.modify()
   users: {
     table_name: "permissions"
   }
-}), a = ({ req: e, res: s, user: t, apps: r }) => [
+}), m = ({ req: e, res: s, user: t, apps: r }) => [
   () => [
     {
       statement: `CREATE TABLE permissions (
@@ -13,21 +13,27 @@ const n = () => ({
 						resource VARCHAR(255),
 						app_name VARCHAR(255),
 						method VARCHAR(255),
-						expires TIMESTAMP DEFAULT CURRENT_TIMESTAMP + interval '1 year',
+						expires TIMESTAMP,
 						created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 					);`,
       data_key: "permissionsTable",
       values: []
     }
   ]
-], p = {
+], u = {
   paths: {
     "/": {
       post: {
         summary: "Create a permission",
         operationId: "createPermission",
         execution: async ({ req: e }) => {
-          const { domain: s, resource: t, method: r, expiration: i, app_name: o } = e.body;
+          const { domain: s, resource: t, method: r, expiration: n, app_name: p } = e.body;
+          let i = n;
+          if (!i) {
+            const o = /* @__PURE__ */ new Date();
+            let a = new Date(o);
+            a.setFullYear(o.getFullYear() + 1), i = a.getTime();
+          }
           return [
             () => [
               {
@@ -37,7 +43,7 @@ const n = () => ({
                   s.toUpperCase(),
                   t.toUpperCase(),
                   r.toUpperCase(),
-                  o,
+                  p,
                   i
                 ]
               }
@@ -132,11 +138,11 @@ const n = () => ({
       }
     }
   }
-}, d = () => {
+}, c = () => {
 };
 export {
-  p as endpoints,
-  a as onInstall,
-  d as postInstall,
-  n as tables
+  u as endpoints,
+  m as onInstall,
+  c as postInstall,
+  d as tables
 };

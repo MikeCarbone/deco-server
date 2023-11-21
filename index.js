@@ -8,6 +8,8 @@ import { fileURLToPath } from "url";
 import pgParse from "pgsql-parser";
 import vhost from "vhost";
 import morgan from "morgan";
+import { createDecipheriv } from "crypto";
+import config from "./config.js";
 
 const { parse, deparse } = pgParse;
 
@@ -18,6 +20,9 @@ dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 
+const { APP_SECRET_ENCRYPTION_STRING } = config;
+const DEFAULT_USER_PASSWORD = "kellykevinlindsaynickjill";
+
 const { Pool } = pg;
 const client = new Pool({
   host: process.env.PGHOST,
@@ -27,6 +32,15 @@ const client = new Pool({
   password: process.env.PGPASSWORD,
 });
 client.connect();
+
+// Decryption function
+function decryptSecret(encryptedText, key, iv) {
+  console.log("here", encryptedText, key, iv);
+  const decipher = createDecipheriv("aes-256-cbc", Buffer.from(key, "hex"), Buffer.from(iv, "hex"));
+  let decrypted = decipher.update(encryptedText, "hex", "utf-8");
+  decrypted += decipher.final("utf-8");
+  return decrypted;
+}
 
 // Build apps.json if there is none
 async function loadApps() {
@@ -86,7 +100,8 @@ function editRelnameWithId(obj, id) {
 
 // Execute synchronous executions
 async function executeOperations(operationsArr, appId, memory = {}, index = 0) {
-  if (index === operationsArr.length) return memory;
+  if (!operationsArr?.length) return memory;
+  if (index === operationsArr?.length) return memory;
   const executionLayer = operationsArr[index];
   if (!executionLayer) return memory;
   const statementOps = await executionLayer(memory);
@@ -338,14 +353,30 @@ function getExecuteOperationFunctionInAppContext(appId) {
 }
 
 // Provides us with context to run a route statement from within an app
+// Middleware will only run on routes, everything else should be ran via `execution`
 function getParallelRouteExecutionContext(appId) {
-  return async (operation) => executeOperations(operation, appId);
+  // Pass in req, res, etc...
+  // Apps will be responsible for passing context
+  // This gives apps an opportunity to customize the context of a route execution
+  // e.g. changing req.params or req.body
+  return async (context, operation) => {
+    // Here, instead of a funtion, operation should just be a route object
+    if (operation.execution) {
+      const operations = await operation.execution(context);
+      const memory = await executeOperations(operations, appId);
+      if (operation.handleReturn) {
+        const formatted = await operation.handleReturn({ ...context, memory });
+        return formatted;
+      }
+      return memory;
+    }
+  };
 }
 
 /**
  * This function will construct our endpoints
  */
-async function buildRouteSubset({ server }) {
+async function buildRouteSubset({ server, user }) {
   const apps = await loadApps();
 
   // Flush old routes so that we can rebuild
@@ -384,6 +415,15 @@ async function buildRouteSubset({ server }) {
       const executeOperationInAppContext = getExecuteOperationFunctionInAppContext(installedApp.id);
       const executeParallelRoute = getParallelRouteExecutionContext(installedApp.id);
 
+      // We only want to expose user stuff to the auth app
+      const exposeUserDetails = installedApp.core_key === CORE_KEYS.users;
+      const exposeServerSecret = installedApp.core_key === CORE_KEYS.apps;
+
+      // Decrypt this app's secrets for this user
+      const secrets = Object.fromEntries(
+        Object.entries(installedApp.secrets).map(([key, value]) => [key, decryptSecret(value, APP_SECRET_ENCRYPTION_STRING, installedApp.initialization_vector)])
+      );
+
       // Let's assemble our route's environment interface as a static object
       // We only have to do this once per app's route generation
       const environmentInterface = await prepareEnvironmentInterface(installedApp, apps);
@@ -412,14 +452,26 @@ async function buildRouteSubset({ server }) {
 
               const routeCallback = async (req, res) => {
                 try {
-                  // This is where we can execute pre-operations
-                  const executionOps = await methodDef.execution({
+                  // Append user to res.locals to auth app
+                  if (exposeUserDetails) {
+                    res.locals._user = user;
+                  }
+
+                  if (exposeServerSecret) {
+                    res.locals._server = { encryption_string: APP_SECRET_ENCRYPTION_STRING };
+                  }
+
+                  const executionContext = {
                     req,
                     res,
                     apps: environmentInterface,
+                    secrets,
                     runStatement: executeOperationInAppContext,
                     runRoute: executeParallelRoute,
-                  });
+                  };
+
+                  // This is where we can execute pre-operations
+                  const executionOps = await methodDef.execution(executionContext);
 
                   // If a response is sent from within an execution context,
                   // we don't want to resend anything
@@ -434,19 +486,26 @@ async function buildRouteSubset({ server }) {
                   // Make sure there is something to operate on
                   // if (executionOpsLength < 1)
 
-                  const memory = await executeOperations(executionOps, installedApp.id);
+                  // Memory object can be a valid return from execution
+                  // We check for array because executionOps should return array of database execution statements
+                  // Memory object is just { key: value }
+                  const memory = Array.isArray(executionOps) ? await executeOperations(executionOps, installedApp.id) : executionOps;
+
+                  const routeReturn = methodDef.handleReturn
+                    ? await methodDef.handleReturn({
+                        ...executionContext,
+                        memory,
+                      })
+                    : { status: 200, data: memory };
 
                   if (methodDef.handleResponse) {
                     return await methodDef.handleResponse({
-                      req,
-                      res,
-                      data: memory,
-                      apps: environmentInterface,
-                      runStatement: executeOperationInAppContext,
-                      runRoute: executeParallelRoute,
+                      ...executionContext,
+                      memory,
+                      returned: routeReturn,
                     });
                   }
-                  res.status(200).send(memory);
+                  res.status(routeReturn.status).send(routeReturn.data);
                 } catch (err) {
                   console.log(err);
                   res.status(500).send({ sucess: false });
@@ -725,48 +784,16 @@ const CORE_APPS = {
   },
 };
 
-const PER_USER_META_ROUTES = {
-  paths: {
-    // Logging in will enable a user to access their resources from sub-URLs
-    "/_meta/login": {
-      post: {
-        summary: "Login a user",
-        operationId: "loginUser",
-        execution: ({ req, res }) => {
-          // sendCookie
-          // const options = { expiresIn: '365d' };
-          const payload = {
-            user: req.user,
-            fromApp: true,
-          };
-          const authToken = jwt.sign(payload, process.env.AUTH_SECRET, options);
-          res.setHeader(
-            "Set-Cookie",
-            cookie.serialize("XSRF-TOKEN", authToken, {
-              httpOnly: true,
-              sameSite: "Lax",
-              path: "/",
-              secure: process.env.MODE === "dev" ? false : true,
-              maxAge: 60 * 60 * 24 * 7 * 52, // 1 year
-            })
-          );
-        },
-      },
-    },
-  },
-};
-
 async function createOwnerIfNotThereAlready() {
   const apps = await loadApps();
   const usersApp = apps.find((a) => a.core_key === CORE_KEYS.users);
   const { endpoints } = await import(`./installs/${usersApp.app_name}/app.js`);
-  const getExecution = endpoints.paths["/"].get.execution;
-  const getExecutionOps = await getExecution();
-  const usersFetch = await executeOperations(getExecutionOps, usersApp.id);
+  const getExecution = await endpoints.paths["/"].get.execution();
+  const usersFetch = await executeOperations(getExecution, usersApp.id);
   const allUsers = usersFetch.allUsers.rows;
   if (allUsers && allUsers?.length > 0) return;
   const postExecution = endpoints.paths["/"].post.execution;
-  const postExecutionOps = await postExecution({ req: { body: { password: "kellykevinlindsaynickjill", subdomain: "root" } }, res: { locals: {} } });
+  const postExecutionOps = await postExecution({ req: { body: { password: DEFAULT_USER_PASSWORD, subdomain: "root" } }, res: { locals: {} } });
   const results = await executeOperations(postExecutionOps, usersApp.id);
   console.log("New owner created.");
   return results;
@@ -799,7 +826,7 @@ async function buildRoutes(mainServer) {
       serverInstance.use(morgan("tiny"));
       serverInstance.use(express.json());
 
-      await buildRouteSubset({ server: serverInstance });
+      await buildRouteSubset({ server: serverInstance, user });
 
       // Append server instance to subdomain resolution
       if (hasSubdomain) {
@@ -814,13 +841,19 @@ async function buildRoutes(mainServer) {
 
 const server = express();
 
+// Upon first load, we can assume the db and these core apps are for the root user
+// Eventually we'll have to install all of these core apps per user
+// Users app should only belong with the root user
+// Users will need their own DB connection configuration
+// Users should be able to bring multiple databases too, not just one
+// Can create a databases table, apps can refer to a database ID so we know which pool to hit with our queries
 try {
   await installApp(CORE_APPS[CORE_KEYS.apps].manifest.path, { isLocal: true, coreKey: CORE_KEYS.apps, id: CORE_APPS[CORE_KEYS.apps].id });
   await installApp(CORE_APPS[CORE_KEYS.users].manifest.path, { isLocal: true, coreKey: CORE_KEYS.users });
   await installApp(CORE_APPS[CORE_KEYS.permissions].manifest.path, { isLocal: true, coreKey: CORE_KEYS.permissions });
   await installApp(CORE_APPS[CORE_KEYS.permissionRequests].manifest.path, { isLocal: true, coreKey: CORE_KEYS.permissionRequests });
-  await buildRoutes(server);
   await createOwnerIfNotThereAlready();
+  await buildRoutes(server);
   server.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
   });

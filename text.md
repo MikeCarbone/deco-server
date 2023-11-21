@@ -1,5 +1,55 @@
 QUESTIONS:
 
+- FLOW
+- Routes:
+- middleware, execution, handleReturn, handleResponse
+- Internal Calls:
+- execution, handleReturn
+
+- We need to standardize returns from execution functions and handleResponse
+- This way we can access data from other routes / apps without it necessarily originating from a request
+- Specifically the return, because the call is fine
+- What if execution and handleResponse can return data
+- What if we create a new function called routeResponse to handle express logic handling
+- routeResponse, routeMiddleware will be request-specific
+- execution and formatReturn are context agnostic, should return either execution operations or standard body that
+
+- How do we configure app secrets? I don't want them to live in the DB
+- We can do a secret basis configured by the admin
+- So per-user secrets are stored in DB, but won't provide access if exposed accidentally
+- Combined with the root server secret, that will create the real secret
+- However we don't want just concatenation, because then the root secret can be reverse engineered
+- Instead we can create a hash representation, where the root secret and the app-key secret are combined, with another root server password, to create a hash representation of the concatenated string
+
+- Limit usage of process.env
+
+- But what if we need not a random string, but a functional string like an API key?
+- We'll have to encrypt that and provide a decrypted value to the app
+- Part of subset route building process
+- Each app has a secrets object, which will be a JSON of encrypted fields for that app
+- Encryption is an encrypted JWT
+- stored as { stripeToken: "xyzencrypted123" }
+- when route is built, we decrypt and pass secrets object
+- { stripeToken: "123unencrypted" }
+- How do we control secrets? Part of apps routes, any secret can be added
+- We can create a pattern for expected secrets
+
+- When logging in a user, how do we access their salt&hash if DB is connected per user, and users table doesn't exist per user...
+- Maybe we share root server access? Discourage users from operating on top of the root layer
+
+- Handling permissions with user data
+- We're gonna have a single user entry
+- Different groups of info for different endpoints?
+- /\_meta/me/public
+- /\_meta/me/payments
+- /\_meta/me/social
+- /\_meta/me/profile
+- editing user details will edit it in the root users table
+- Per user groups will generate endpoints - user detail groups app?
+- Pull info from
+- We can keep meta description file for quick UX details about each field
+- We can generate an endpoint per user information group
+
 - Making endpoint executions usable outside endpoint context
 
   - What if we want to call them as functions without sending stuff? For internal use / AI

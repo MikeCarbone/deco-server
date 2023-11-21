@@ -1,10 +1,10 @@
-const c = () => ({
+const d = () => ({
   // Key can be anything, but should be reflective of the table name
   // this will be accessible via apps.appName.tables.tableName.modify()
   users: {
     table_name: "permission_requests"
   }
-}), l = ({ req: e, res: s, user: r, apps: t }) => [
+}), u = ({ req: s, res: e, user: r, apps: i }) => [
   () => [
     {
       statement: `CREATE TABLE permission_requests (
@@ -20,20 +20,20 @@ const c = () => ({
       values: []
     }
   ]
-], m = {
+], p = {
   paths: {
     "/": {
       post: {
         summary: "Create a permission request",
-        operationId: "createAPermissionRequest",
-        execution: async ({ req: e, apps: s }) => {
+        operationId: "createPermissionRequest",
+        execution: async ({ req: s, apps: e }) => {
           const {
             domain: r,
-            resource: t,
-            app_name: o,
-            method: n,
-            suggested_expiration: a
-          } = e.body;
+            resource: i,
+            app_name: a,
+            method: o,
+            suggested_expiration: t
+          } = s.body;
           return [
             () => [
               {
@@ -41,10 +41,10 @@ const c = () => ({
                 data_key: "newPermission",
                 values: [
                   r.toUpperCase(),
-                  t.toUpperCase(),
-                  n.toUpperCase(),
-                  o,
-                  a
+                  i.toUpperCase(),
+                  o.toUpperCase(),
+                  a,
+                  t
                 ]
               }
             ]
@@ -55,8 +55,8 @@ const c = () => ({
       get: {
         summary: "Fetch permission requests",
         operationId: "fetchPermissionReqests",
-        execution: (e) => {
-          const { resource: s, method: r, domain: t } = e.query;
+        execution: (s) => {
+          const { resource: e, method: r, domain: i } = s.query;
           return [
             // Function to pass results from one sync operation to another
             // First will be empty of course
@@ -65,9 +65,9 @@ const c = () => ({
                 statement: "SELECT * FROM permission_requests WHERE resource=$1, method=$2, domain=$3",
                 data_key: "permissions",
                 values: [
-                  s.toUpperCase(),
+                  e.toUpperCase(),
                   r.toUpperCase(),
-                  t.toUpperCase()
+                  i.toUpperCase()
                 ]
               }
             ]
@@ -79,8 +79,8 @@ const c = () => ({
       get: {
         summary: "Get a permission request record",
         operationId: "getPermissionRequest",
-        execution: ({ req: e }) => {
-          const { id: s } = e.params;
+        execution: ({ req: s }) => {
+          const { id: e } = s.params;
           return [
             // Function to pass results from one sync operation to another
             // First will be empty of course
@@ -88,17 +88,27 @@ const c = () => ({
               {
                 statement: "SELECT * FROM permission_requests WHERE id=$1",
                 data_key: "permissionRecord",
-                values: [s]
+                values: [e]
               }
             ]
           ];
+        },
+        handleReturn: ({ memory: s }) => {
+          const { permissionRecord: e } = s;
+          return e != null && e.rows[0] ? {
+            status: 200,
+            data: e == null ? void 0 : e.rows[0]
+          } : {
+            status: 404,
+            data: null
+          };
         }
       },
       delete: {
         summary: "Deletes a permission request record",
         operationId: "deletePermissionRequest",
-        execution: ({ req: e }) => {
-          const { id: s } = e.params;
+        execution: ({ req: s }) => {
+          const { id: e } = s.params;
           return [
             // Function to pass results from one sync operation to another
             // First will be empty of course
@@ -106,7 +116,7 @@ const c = () => ({
               {
                 statement: "DELETE FROM permission_requests WHERE id=$1",
                 data_key: "permissionDelete",
-                values: [s]
+                values: [e]
               }
             ]
           ];
@@ -117,29 +127,28 @@ const c = () => ({
       post: {
         summary: "Accept a permission request",
         operationId: "acceptPermissionRequest",
-        execution: async ({ req: e, res: s, apps: r, runRoute: t }) => {
-          var d;
-          const o = (d = e.body) == null ? void 0 : d.expiration, n = m.paths["/{id}"].get.execution({ req: e }), { permissionRecord: a } = await t(n), p = a.rows;
-          console.log("R: ", p);
-          const i = p[0];
-          if (i) {
-            await r["deco-permissions"].operations.createPermission({
-              res: s,
-              req: {
-                ...e,
-                body: {
-                  domain: i.domain,
-                  resource: i.resource,
-                  method: i.method,
-                  expiration: o || i.suggested_expiration,
-                  app_name: i.app_name
-                }
+        execution: async (s) => {
+          var n;
+          const { req: e, res: r, apps: i, runRoute: a } = s, o = (n = e.body) == null ? void 0 : n.expiration, { data: t } = await a(
+            s,
+            p.paths["/{id}"].get
+          );
+          return t ? (await i["deco-permissions"].operations.createPermission({
+            res: r,
+            req: {
+              ...e,
+              body: {
+                domain: t.domain,
+                resource: t.resource,
+                method: t.method,
+                expiration: o || t.suggested_expiration,
+                app_name: t.app_name
               }
-            });
-            const u = m.paths["/{id}"].delete.execution({ req: e });
-            return await t(u);
-          }
-          return s.status(404).send({ message: "Record not found" });
+            }
+          }), await a(
+            s,
+            p.paths["/{id}"].delete
+          )) : r.status(404).send({ message: "Record not found" });
         }
       }
     }
@@ -206,11 +215,11 @@ const c = () => ({
       }
     }
   }
-}, R = () => {
+}, m = () => {
 };
 export {
-  m as endpoints,
-  l as onInstall,
-  R as postInstall,
-  c as tables
+  p as endpoints,
+  u as onInstall,
+  m as postInstall,
+  d as tables
 };

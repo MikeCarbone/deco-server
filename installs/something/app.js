@@ -49,7 +49,8 @@ export const endpoints = {
 				summary: "Get a list of todos",
 				operationId: "getTodos",
 				// By default will return JSON of the returnedObjectName
-				execution: async ({ req, res, user, apps }) => {
+				execution: async ({ req, res, user, apps, secrets }) => {
+					console.log("s", secrets);
 					return [
 						() => {
 							// Interact with third party apps
@@ -68,9 +69,12 @@ export const endpoints = {
 						},
 					];
 				},
-				handleResponse: ({ req, res, user, data }) => {
-					const { todos } = data;
-					return res.status(200).json(todos?.rows);
+				handleReturn: ({ memory }) => {
+					const { todos } = memory;
+					return {
+						status: 200,
+						data: todos?.rows,
+					};
 				},
 			},
 			post: {
