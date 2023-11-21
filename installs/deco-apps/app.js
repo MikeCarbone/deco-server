@@ -11,17 +11,17 @@ const r = () => ({
     method: e.method,
     summary: e == null ? void 0 : e.summary,
     operation_id: e == null ? void 0 : e.operationId,
-    privacy: "PRIVATE"
+    privacy: (e == null ? void 0 : e.privacy) || "PRIVATE"
   }))
 });
-function f(t, e, a) {
+function f(t, e, s) {
   const n = m.createCipheriv(
     "aes-256-cbc",
     Buffer.from(e, "hex"),
-    Buffer.from(a, "hex")
+    Buffer.from(s, "hex")
   );
-  let s = n.update(t, "utf-8", "hex");
-  return s += n.final("hex"), s;
+  let a = n.update(t, "utf-8", "hex");
+  return a += n.final("hex"), a;
 }
 const $ = () => [
   () => [
@@ -47,13 +47,13 @@ const $ = () => [
       post: {
         summary: "Create a record of an app installation",
         operationId: "createInstallationRecord",
-        execution: async ({ req: t, res: e, runStatement: a }) => {
-          const s = (await a({
+        execution: async ({ req: t, res: e, runStatement: s }) => {
+          const a = (await s({
             statement: `SELECT * FROM ${r().installed_apps.table_name} WHERE app_name=$1`,
             data_key: "existingApps",
             values: [t.body.app_name]
           })).existingApps.rows;
-          if (s != null && s.length)
+          if (a != null && a.length)
             return e.status(400).send({ message: "App name already exists." });
           const {
             id: i,
@@ -142,10 +142,10 @@ const $ = () => [
             ]
           ];
         },
-        handleReturn: ({ memory: t, res: e }) => {
-          const { fetchedInstallationRecord: a } = t;
-          return a != null && a.rows ? {
-            data: a == null ? void 0 : a.rows[0],
+        handleReturn: ({ memory: t }) => {
+          const { fetchedInstallationRecord: e } = t;
+          return e != null && e.rows ? {
+            data: e == null ? void 0 : e.rows[0],
             status: 200
           } : {
             data: null,
@@ -158,9 +158,9 @@ const $ = () => [
         operationId: "updateInstallationRecord",
         execution: ({ req: t }) => {
           const { id: e } = t.params, {
-            manifest_uri: a,
+            manifest_uri: s,
             granted_permissions: n,
-            core_key: s,
+            core_key: a,
             routes: i
           } = t.body, o = { granted: n }, p = u(i);
           return [
@@ -173,9 +173,9 @@ const $ = () => [
                 data_key: "updatedInstallationRecord",
                 values: [
                   e,
-                  a,
-                  o,
                   s,
+                  o,
+                  a,
                   p
                 ]
               }
@@ -189,7 +189,7 @@ const $ = () => [
         summary: "Save an app secret",
         operationId: "saveAppSecret",
         execution: async (t) => {
-          const { req: e, res: a, runRoute: n } = t, { id: s } = e.params, { key: i, value: o } = e.body, p = a.locals._server.encryption_string, { data: d } = await n(
+          const { req: e, res: s, runRoute: n } = t, { id: a } = e.params, { key: i, value: o } = e.body, p = s.locals._server.encryption_string, { data: d } = await n(
             t,
             E.paths["/{id}"].get
           ), l = d.secrets, c = f(
@@ -202,7 +202,7 @@ const $ = () => [
               {
                 statement: `UPDATE ${r().installed_apps.table_name} SET secrets = $1 WHERE id = $2`,
                 data_key: "secretSaveRecord",
-                values: [l, s]
+                values: [l, a]
               }
             ]
           ];

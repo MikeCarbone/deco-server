@@ -9,6 +9,8 @@ import pgParse from "pgsql-parser";
 import vhost from "vhost";
 import morgan from "morgan";
 import { createDecipheriv } from "crypto";
+import cookie from "cookie";
+
 import config from "./config.js";
 
 const { parse, deparse } = pgParse;
@@ -20,7 +22,7 @@ dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 
-const { APP_SECRET_ENCRYPTION_STRING } = config;
+const { APP_SECRET_ENCRYPTION_STRING, LOGIN_JWT_KEY } = config;
 const DEFAULT_USER_PASSWORD = "kellykevinlindsaynickjill";
 
 const { Pool } = pg;
@@ -35,7 +37,6 @@ client.connect();
 
 // Decryption function
 function decryptSecret(encryptedText, key, iv) {
-  console.log("here", encryptedText, key, iv);
   const decipher = createDecipheriv("aes-256-cbc", Buffer.from(key, "hex"), Buffer.from(iv, "hex"));
   let decrypted = decipher.update(encryptedText, "hex", "utf-8");
   decrypted += decipher.final("utf-8");
@@ -248,8 +249,7 @@ async function prepareEnvironmentInterface(app, apps) {
  * 3. per-domain authorization
  * 4. TODO: API token authorization header
  */
-async function authenticationMiddleware(req, res, next, app, permissionsAppId) {
-  return next();
+async function authenticationMiddleware(req, res, next, app, permissionsAppId, usersAppId) {
   const templateRoutePath = req.route.path;
   const formattedRoutePath = templateRoutePath.replace(/:(\w+)/g, "{$1}");
   const identifier = "/" + formattedRoutePath.split("/").slice(3).join("/");
@@ -294,15 +294,22 @@ async function authenticationMiddleware(req, res, next, app, permissionsAppId) {
   }
 
   // Identify if there is a cookie in req.cookies
-  const cookieToken = req.cookies?.token;
+  const cookies = cookie.parse(req.headers.cookie || "");
+  const cookieAuthToken = cookies["XSRF-TOKEN"];
 
   // If there is a cookie, validate it as jwt
-  if (cookieToken) {
+  if (cookieAuthToken) {
     try {
-      // const decodedToken = jwt.verify(cookieToken, "your-secret-key");
-      // req.user = decodedToken; // Attach the user to the request for further use
-      // return next();
+      res.locals._server.login_jwt_key = LOGIN_JWT_KEY;
+      const usersApp = await import("./installs/deco-users/app.js");
+      const validate = getParallelRouteExecutionContext(usersAppId);
+      const { data, status } = await validate({ req, res }, usersApp.endpoints.paths["/authenticate"].get);
+      if (status === 200) {
+        res.locals._user.id = data.sub;
+        return next();
+      }
     } catch (error) {
+      console.log(error);
       return res.status(401).json({ message: "Invalid token in cookie" });
     }
   }
@@ -363,7 +370,10 @@ function getParallelRouteExecutionContext(appId) {
     // Here, instead of a funtion, operation should just be a route object
     if (operation.execution) {
       const operations = await operation.execution(context);
-      const memory = await executeOperations(operations, appId);
+      // Memory object can be a valid return from execution
+      // We check for array because executionOps should return array of database execution statements
+      // Memory object is just { key: value }
+      const memory = Array.isArray(operations) ? await executeOperations(operations, appId) : operations;
       if (operation.handleReturn) {
         const formatted = await operation.handleReturn({ ...context, memory });
         return formatted;
@@ -417,7 +427,34 @@ async function buildRouteSubset({ server, user }) {
 
       // We only want to expose user stuff to the auth app
       const exposeUserDetails = installedApp.core_key === CORE_KEYS.users;
+      const exposeJwtKey = installedApp.core_key === CORE_KEYS.users;
       const exposeServerSecret = installedApp.core_key === CORE_KEYS.apps;
+
+      // Append metadata if needed
+      const preAuthMiddleware = (exposeUser, exposeJwt, exposeServer) => {
+        return (req, res, next) => {
+          res.locals._user = {};
+          res.locals._server = {};
+
+          // Append user to res.locals to auth app
+          if (exposeUser) {
+            res.locals._user = user;
+          }
+
+          // We have to make an exception here because how can a user set a secret before logging in
+          // All other secrets should be set via app secrets
+          // Changing this will also log out all users
+          if (exposeJwt) {
+            res.locals._server.login_jwt_key = LOGIN_JWT_KEY;
+          }
+
+          // Necessary for encrypting app secrets
+          if (exposeServer) {
+            res.locals._server.encryption_string = APP_SECRET_ENCRYPTION_STRING;
+          }
+          return next();
+        };
+      };
 
       // Decrypt this app's secrets for this user
       const secrets = Object.fromEntries(
@@ -452,15 +489,6 @@ async function buildRouteSubset({ server, user }) {
 
               const routeCallback = async (req, res) => {
                 try {
-                  // Append user to res.locals to auth app
-                  if (exposeUserDetails) {
-                    res.locals._user = user;
-                  }
-
-                  if (exposeServerSecret) {
-                    res.locals._server = { encryption_string: APP_SECRET_ENCRYPTION_STRING };
-                  }
-
                   const executionContext = {
                     req,
                     res,
@@ -496,7 +524,7 @@ async function buildRouteSubset({ server, user }) {
                         ...executionContext,
                         memory,
                       })
-                    : { status: 200, data: memory };
+                    : { status: memory?.status || 200, data: memory?.data };
 
                   if (methodDef.handleResponse) {
                     return await methodDef.handleResponse({
@@ -522,18 +550,19 @@ async function buildRouteSubset({ server, user }) {
               // Authentication middleware needs this ID because it has to execute a GET from the permissions app context
               // Might as well pas it in here while we have it
               const permissionsAppId = apps.find((a) => a.core_key === CORE_KEYS.permissions).id;
+              const usersAppId = apps.find((a) => a.core_key === CORE_KEYS.users).id;
 
               // This is a dynamic way of setting express's routes
               // e.g. server.get('/items', callback())
               server[method](
                 `/apps/${installedApp.app_name}${formattedPathString}`,
-                (req, res, next) => authenticationMiddleware(req, res, next, installedApp, permissionsAppId),
+                preAuthMiddleware(exposeUserDetails, exposeJwtKey, exposeServerSecret),
+                (req, res, next) => authenticationMiddleware(req, res, next, installedApp, permissionsAppId, usersAppId),
                 routeMiddleware,
                 operationMiddleware,
                 routeCallback
               );
-
-              console.log(`Built route ${method.toUpperCase()} /apps/${installedApp.app_name}${formattedPathString}`);
+              console.log(`Built ${(methodDef?.privacy || "PRIVATE").toLowerCase()} route ${method.toUpperCase()} /apps/${installedApp.app_name}${formattedPathString}`);
             })
           );
         })
