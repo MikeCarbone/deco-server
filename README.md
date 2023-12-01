@@ -25,11 +25,12 @@ This project is in alpha and is not guaranteed to be secure. Do not store any se
 
 Contributions are welcome. Here is what is still needed:
 
-[ ] Notifications
-[ ] Install requests
-[ ] User profiles
-[ ] User permissions
-[ ] Frontend dashboards
-[ ] Manual installations
-[ ] API Access
-[ ] Pre-build secrets script
+- [ ] Notifications
+- [ ] Install requests
+- [ ] User profiles
+- [ ] User permissions
+- [ ] Frontend dashboards
+- [ ] Manual installations
+- [ ] API Access
+- [ ] Pre-build secrets script
+- [ ] Tests
