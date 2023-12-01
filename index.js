@@ -245,7 +245,7 @@ async function prepareEnvironmentInterface(app, apps) {
 /**
  * FOUR METHODS OF ACCESS
  * 1. public route as configured by owner
- * 2. TODO: cookie for local access
+ * 2. cookie for local access
  * 3. per-domain authorization
  * 4. TODO: API token authorization header
  */
@@ -426,6 +426,8 @@ async function buildRouteSubset({ server, user }) {
       const executeParallelRoute = getParallelRouteExecutionContext(installedApp.id);
 
       // We only want to expose user stuff to the auth app
+      // The core apps sometimes require us to expose stuff we don't normally want to expose
+      // Maybe in the future we can invent a better strategy for this, but for now this is good
       const exposeUserDetails = installedApp.core_key === CORE_KEYS.users;
       const exposeJwtKey = installedApp.core_key === CORE_KEYS.users;
       const exposeServerSecret = installedApp.core_key === CORE_KEYS.apps;
