@@ -1,11 +1,9 @@
 import m from "crypto";
-const r = () => ({
-  // Key can be anything, but should be reflective of the table name
-  // this will be accessible via apps.appName.tables.tableName.modify()
-  installed_apps: {
-    table_name: "installed_apps"
+const n = () => ({
+  plugins: {
+    table_name: "plugins"
   }
-}), u = (t) => ({
+}), p = (t) => ({
   routes: t.map((e) => ({
     path: e.path,
     method: e.method,
@@ -14,21 +12,21 @@ const r = () => ({
     privacy: (e == null ? void 0 : e.privacy) || "PRIVATE"
   }))
 });
-function f(t, e, s) {
-  const n = m.createCipheriv(
+function R(t, e, a) {
+  const r = m.createCipheriv(
     "aes-256-cbc",
     Buffer.from(e, "hex"),
-    Buffer.from(s, "hex")
+    Buffer.from(a, "hex")
   );
-  let a = n.update(t, "utf-8", "hex");
-  return a += n.final("hex"), a;
+  let s = r.update(t, "utf-8", "hex");
+  return s += r.final("hex"), s;
 }
-const $ = () => [
+const h = () => [
   () => [
     {
-      statement: `CREATE TABLE installed_apps (
+      statement: `CREATE TABLE ${n().plugins.table_name} (
 						id UUID PRIMARY KEY,
-						app_name VARCHAR(255),
+						name VARCHAR(255),
 						manifest_uri VARCHAR(255),
 						granted_permissions JSONB,
 						core_key VARCHAR(255),
@@ -37,48 +35,48 @@ const $ = () => [
 						initialization_vector VARCHAR(255),
 						installed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 					);`,
-      data_key: "appsTable",
+      data_key: "pluginsTable",
       values: []
     }
   ]
-], E = {
+], f = {
   paths: {
     "/": {
       post: {
-        summary: "Create a record of an app installation",
+        summary: "Create a record of a plugin installation",
         operationId: "createInstallationRecord",
-        execution: async ({ req: t, res: e, runStatement: s }) => {
-          const a = (await s({
-            statement: `SELECT * FROM ${r().installed_apps.table_name} WHERE app_name=$1`,
-            data_key: "existingApps",
-            values: [t.body.app_name]
-          })).existingApps.rows;
-          if (a != null && a.length)
-            return e.status(400).send({ message: "App name already exists." });
+        execution: async ({ req: t, res: e, runStatement: a }) => {
+          const s = (await a({
+            statement: `SELECT * FROM ${n().plugins.table_name} WHERE name=$1`,
+            data_key: "existingPlugins",
+            values: [t.body.name]
+          })).existingPlugins.rows;
+          if (s != null && s.length)
+            return e.status(400).send({ message: "Plugin name already exists." });
           const {
             id: i,
-            app_name: o,
-            manifest_uri: p,
-            granted_permissions: d = [],
-            core_key: l,
+            name: o,
+            manifest_uri: u,
+            granted_permissions: l = [],
+            core_key: d,
             routes: c
-          } = t.body, _ = u(c), y = { granted: d }, R = m.randomBytes(16).toString("hex");
+          } = t.body, g = p(c), y = { granted: l }, _ = m.randomBytes(16).toString("hex");
           return [
             // Function to pass results from one sync operation to another
             // First will be empty of course
             () => [
               {
-                statement: `INSERT INTO ${r().installed_apps.table_name} (id, app_name, manifest_uri, granted_permissions, core_key, routes, secrets, initialization_vector) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-                data_key: "newApp",
+                statement: `INSERT INTO ${n().plugins.table_name} (id, name, manifest_uri, granted_permissions, core_key, routes, secrets, initialization_vector) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                data_key: "newPlugin",
                 values: [
                   i,
                   o,
-                  p,
+                  u,
                   y,
-                  l,
-                  _,
+                  d,
+                  g,
                   {},
-                  R
+                  _
                 ]
               }
             ]
@@ -87,28 +85,28 @@ const $ = () => [
       },
       // We don't want to expose this externally kinda
       get: {
-        summary: "Fetch all app installation records",
+        summary: "Fetch all plugin installation records",
         operationId: "fetchInstallationRecords",
         execution: () => [
           // Function to pass results from one sync operation to another
           // First will be empty of course
           () => [
             {
-              statement: `SELECT * FROM ${r().installed_apps.table_name};`,
-              data_key: "allApps",
+              statement: `SELECT * FROM ${n().plugins.table_name};`,
+              data_key: "allPlugins",
               values: []
             }
           ]
         ],
         handleReturn: ({ memory: t, res: e }) => ({
           status: 200,
-          data: t == null ? void 0 : t.allApps.rows
+          data: t == null ? void 0 : t.allPlugins.rows
         })
       }
     },
     "/{id}": {
       delete: {
-        summary: "Delete an app installation record",
+        summary: "Delete an plugin installation record",
         operationId: "deleteInstallationRecord",
         execution: ({ req: t }) => {
           const { id: e } = t.params;
@@ -117,7 +115,7 @@ const $ = () => [
             // First will be empty of course
             () => [
               {
-                statement: `DELETE FROM ${r().installed_apps.table_name} WHERE id = $1;`,
+                statement: `DELETE FROM ${n().plugins.table_name} WHERE id = $1;`,
                 data_key: "deletedInstallationRecord",
                 values: [e]
               }
@@ -126,7 +124,7 @@ const $ = () => [
         }
       },
       get: {
-        summary: "Fetch app installation record",
+        summary: "Fetch plugin installation record",
         operationId: "getInstallationRecord",
         execution: ({ req: t }) => {
           const { id: e } = t.params;
@@ -135,7 +133,7 @@ const $ = () => [
             // First will be empty of course
             () => [
               {
-                statement: `SELECT * FROM ${r().installed_apps.table_name} WHERE id = $1;`,
+                statement: `SELECT * FROM ${n().plugins.table_name} WHERE id = $1;`,
                 data_key: "fetchedInstallationRecord",
                 values: [e]
               }
@@ -154,29 +152,29 @@ const $ = () => [
         }
       },
       patch: {
-        summary: "Update an app installation record",
+        summary: "Update a plugin installation record",
         operationId: "updateInstallationRecord",
         execution: ({ req: t }) => {
           const { id: e } = t.params, {
-            manifest_uri: s,
-            granted_permissions: n,
-            core_key: a,
+            manifest_uri: a,
+            granted_permissions: r,
+            core_key: s,
             routes: i
-          } = t.body, o = { granted: n }, p = u(i);
+          } = t.body, o = { granted: r }, u = p(i);
           return [
             // Function to pass results from one sync operation to another
             // First will be empty of course
             () => [
               {
-                statement: `UPDATE ${r().installed_apps.table_name} SET manifest_uri = $2, granted_permissions = $3, core_key = $4, routes = $5
+                statement: `UPDATE ${n().plugins.table_name} SET manifest_uri = $2, granted_permissions = $3, core_key = $4, routes = $5
 									WHERE id = $1;`,
                 data_key: "updatedInstallationRecord",
                 values: [
                   e,
-                  s,
-                  o,
                   a,
-                  p
+                  o,
+                  s,
+                  u
                 ]
               }
             ]
@@ -186,23 +184,23 @@ const $ = () => [
     },
     "/{id}/secrets": {
       post: {
-        summary: "Save an app secret",
-        operationId: "saveAppSecret",
+        summary: "Save a plugin secret",
+        operationId: "savePluginSecret",
         execution: async (t) => {
-          const { req: e, res: s, runRoute: n } = t, { id: a } = e.params, { key: i, value: o } = e.body, p = s.locals._server.encryption_string, { data: d } = await n(
+          const { req: e, res: a, runRoute: r } = t, { id: s } = e.params, { key: i, value: o } = e.body, u = a.locals._server.encryption_string, { data: l } = await r(
             t,
-            E.paths["/{id}"].get
-          ), l = d.secrets, c = f(
+            f.paths["/{id}"].get
+          ), d = l.secrets, c = R(
             o,
-            p,
-            d.initialization_vector
+            u,
+            l.initialization_vector
           );
-          return l[i] = c, d.secrets = l, [
+          return d[i] = c, l.secrets = d, [
             () => [
               {
-                statement: `UPDATE ${r().installed_apps.table_name} SET secrets = $1 WHERE id = $2`,
+                statement: `UPDATE ${n().plugins.table_name} SET secrets = $1 WHERE id = $2`,
                 data_key: "secretSaveRecord",
-                values: [l, a]
+                values: [d, s]
               }
             ]
           ];
@@ -282,11 +280,11 @@ const $ = () => [
       }
     }
   }
-}, g = () => {
+}, $ = () => {
 };
 export {
-  E as endpoints,
-  $ as onInstall,
-  g as postInstall,
-  r as tables
+  f as endpoints,
+  h as onInstall,
+  $ as postInstall,
+  n as tables
 };

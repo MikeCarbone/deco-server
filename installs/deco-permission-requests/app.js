@@ -1,17 +1,17 @@
-const d = () => ({
+const u = () => ({
   // Key can be anything, but should be reflective of the table name
   // this will be accessible via apps.appName.tables.tableName.modify()
   users: {
     table_name: "permission_requests"
   }
-}), u = ({ req: s, res: e, user: r, apps: i }) => [
+}), d = ({ req: s, res: e, user: r, apps: i }) => [
   () => [
     {
       statement: `CREATE TABLE permission_requests (
 						id UUID PRIMARY KEY,
 						domain VARCHAR(255),
 						resource VARCHAR(255),
-						app_name VARCHAR(255),
+						plugin_name VARCHAR(255),
 						method VARCHAR(255),
 						suggested_expiration TIMESTAMP,
 						created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -30,20 +30,20 @@ const d = () => ({
           const {
             domain: r,
             resource: i,
-            app_name: a,
-            method: o,
+            plugin_name: o,
+            method: a,
             suggested_expiration: t
           } = s.body;
           return [
             () => [
               {
-                statement: "INSERT INTO permission_requests (id, domain, resource, method, app_name, suggested_expiration) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)",
+                statement: "INSERT INTO permission_requests (id, domain, resource, method, name, suggested_expiration) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)",
                 data_key: "newPermission",
                 values: [
                   r.toUpperCase(),
                   i.toUpperCase(),
-                  o.toUpperCase(),
-                  a,
+                  a.toUpperCase(),
+                  o,
                   t
                 ]
               }
@@ -129,7 +129,7 @@ const d = () => ({
         operationId: "acceptPermissionRequest",
         execution: async (s) => {
           var n;
-          const { req: e, res: r, apps: i, runRoute: a } = s, o = (n = e.body) == null ? void 0 : n.expiration, { data: t } = await a(
+          const { req: e, res: r, apps: i, runRoute: o } = s, a = (n = e.body) == null ? void 0 : n.expiration, { data: t } = await o(
             s,
             p.paths["/{id}"].get
           );
@@ -141,11 +141,11 @@ const d = () => ({
                 domain: t.domain,
                 resource: t.resource,
                 method: t.method,
-                expiration: o || t.suggested_expiration,
-                app_name: t.app_name
+                expiration: a || t.suggested_expiration,
+                plugin_name: t.plugin_name
               }
             }
-          }), await a(
+          }), await o(
             s,
             p.paths["/{id}"].delete
           )) : r.status(404).send({ message: "Record not found" });
@@ -219,7 +219,7 @@ const d = () => ({
 };
 export {
   p as endpoints,
-  u as onInstall,
+  d as onInstall,
   m as postInstall,
-  d as tables
+  u as tables
 };

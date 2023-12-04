@@ -1,5 +1,4 @@
 import express from "express";
-import pg from "pg";
 import dotenv from "dotenv";
 import { promises as fs } from "fs";
 import path from "path";
@@ -10,6 +9,7 @@ import vhost from "vhost";
 import morgan from "morgan";
 import { createDecipheriv } from "crypto";
 import cookie from "cookie";
+import { client } from "./db/index.js";
 
 import config from "./config.js";
 
@@ -22,39 +22,28 @@ dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 
-const { APP_SECRET_ENCRYPTION_STRING, LOGIN_JWT_KEY } = config;
+const { PLUGIN_SECRET_ENCRYPTION_STRING, LOGIN_JWT_KEY } = config;
 const DEFAULT_USER_PASSWORD = "kellykevinlindsaynickjill";
 
-const { Pool } = pg;
-const client = new Pool({
-  host: process.env.PGHOST,
-  port: process.env.PGPORT,
-  database: process.env.PGDATABASE,
-  user: process.env.PGUSER,
-  password: process.env.PGPASSWORD,
-});
-client.connect();
-
 // Decryption function
-function decryptSecret(encryptedText, key, iv) {
+export function decryptSecret(encryptedText, key, iv) {
   const decipher = createDecipheriv("aes-256-cbc", Buffer.from(key, "hex"), Buffer.from(iv, "hex"));
   let decrypted = decipher.update(encryptedText, "hex", "utf-8");
   decrypted += decipher.final("utf-8");
   return decrypted;
 }
 
-// Build apps.json if there is none
-async function loadApps() {
+export async function loadPlugins() {
   try {
-    const { endpoints } = await import(`./installs/deco-apps/app.js`);
+    const { endpoints } = await import(`./installs/deco-plugins/app.js`);
     const execution = endpoints.paths["/"].get.execution;
 
-    // This execution ONLY applies to this specific user app
+    // This execution ONLY applies to this specific user plugin
     const executionOps = await execution();
-    const { allApps } = await executeOperations(executionOps, CORE_APPS[CORE_KEYS.apps].id);
-    return allApps.rows;
+    const { allPlugins } = await executeOperations(executionOps, CORE_PLUGINS[CORE_KEYS.plugins].id);
+    return allPlugins.rows;
   } catch (error) {
-    console.log("Error loading apps table. Assuming it doesn't exist...");
+    console.log("Error loading plugins table. Assuming it doesn't exist...");
     // console.error(error);
     return null;
   }
@@ -100,7 +89,7 @@ function editRelnameWithId(obj, id) {
 }
 
 // Execute synchronous executions
-async function executeOperations(operationsArr, appId, memory = {}, index = 0) {
+export async function executeOperations(operationsArr, pluginId, memory = {}, index = 0) {
   if (!operationsArr?.length) return memory;
   if (index === operationsArr?.length) return memory;
   const executionLayer = operationsArr[index];
@@ -111,62 +100,62 @@ async function executeOperations(operationsArr, appId, memory = {}, index = 0) {
     statementOps.map(async (statementOp) => {
       const { statement, data_key, values = [] } = statementOp;
 
-      // use AST to parse out table name and append app's designated uuid
+      // use AST to parse out table name and append plugin's designated uuid
       // multi-word table names have to use underscores or wrap the name in quotes
       // for meta endpoints, we'll use underscores as a standard
       const ast = parse(statement);
 
-      // Append the appId to the referenced tables
-      editRelnameWithId(ast, appId);
+      // Append the pluginId to the referenced tables
+      editRelnameWithId(ast, pluginId);
       const newStatement = deparse(ast);
       const transaction = await client.query(newStatement, values);
       memory[data_key] = transaction;
     })
   );
-  return executeOperations(operationsArr, appId, memory, index + 1);
+  return executeOperations(operationsArr, pluginId, memory, index + 1);
 }
 
 /**
- * This allows apps to interact with other apps
+ * This allows plugins to interact with other plugins
  * We can construct this per-route depending on granted permissions
- * This is essentially the interface how apps get to use other apps
+ * This is essentially the interface how plugins get to use other plugins
  * We'll also want to enable access to root stuff here like logs, profile, etc
- * We don't want apps to know about other apps it doesnt have permission to access
+ * We don't want plugins to know about other plugins it doesnt have permission to access
  */
-async function prepareEnvironmentInterface(app, apps) {
+export async function prepareEnvironmentInterface(plugin, plugins) {
   /**
-   * Initial process is to take the granted_permissions and separate into each app
+   * Initial process is to take the granted_permissions and separate into each plugin
    * We fetch
    */
 
   /**
    * Create object that looks like
-   * { appName: { permissions: [{ type: "operation", key: "getTodos" }] }, ... }
-   * This will put all of an app's permissions in the same bucket
-   * This will make the later import easier as we only have to do it once per app
+   * { pluginName: { permissions: [{ type: "operation", key: "getTodos" }] }, ... }
+   * This will put all of an plugin's permissions in the same bucket
+   * This will make the later import easier as we only have to do it once per plugin
    */
-  const requiredModulesObj = app.granted_permissions.granted.reduce((acc, perm) => {
-    const appName = perm.app_name;
-    if (!acc[appName]) {
-      acc[appName] = { permissions: [], app_name: appName };
+  const requiredModulesObj = plugin.granted_permissions.granted.reduce((acc, perm) => {
+    const pluginName = perm.plugin_name;
+    if (!acc[pluginName]) {
+      acc[pluginName] = { permissions: [], plugin_name: pluginName };
     }
-    acc[appName].permissions.push(perm);
+    acc[pluginName].permissions.push(perm);
     return acc;
   }, {});
 
   // Put that into an array and remove meta ones
   /**
    * Now we have an array like
-   * [{ app_name: "something", permissions: [] }, ...]
+   * [{ plugin_name: "something", permissions: [] }, ...]
    */
   const requiredModules = Object.keys(requiredModulesObj)
     .map((objKey) => ({ ...requiredModulesObj[objKey] }))
-    .filter((perm) => perm.app_name !== "_meta");
+    .filter((perm) => perm.plugin_name !== "_meta");
 
   // Import module and append it to the object
   const models = await Promise.all(
     requiredModules.map(async (mod) => {
-      const module = await import(`./installs/${mod.app_name}/app.js`);
+      const module = await import(`./installs/${mod.plugin_name}/app.js`);
       mod.module = module;
       mod.tables = await module.tables();
       return mod;
@@ -182,11 +171,11 @@ async function prepareEnvironmentInterface(app, apps) {
    * this reducer
    */
   const environmentInterface = models.reduce((accumulator, model) => {
-    const { module, tables, app_name: appName, permissions } = model;
+    const { module, tables, plugin_name: pluginName, permissions } = model;
 
     // Access potentially oriented object (we set this at the end)
-    if (!accumulator[appName]) {
-      accumulator[appName] = {
+    if (!accumulator[pluginName]) {
+      accumulator[pluginName] = {
         operations: {},
         tables: {},
       };
@@ -195,26 +184,26 @@ async function prepareEnvironmentInterface(app, apps) {
     const { endpoints } = module;
     const flatOperations = flattenOpenApiJson(endpoints.paths);
 
-    // Let's find the app we're working within
-    const referencedApp = apps.find((a) => a.app_name === appName);
+    // Let's find the plugin we're working within
+    const referencedPlugin = plugins.find((a) => a.name === pluginName);
 
     /**
-     * This is where we'll be able to append operations to our 'apps' object
-     * Right now it's simple operations, but I imagine this apps object growing significantly
+     * This is where we'll be able to append operations to our 'plugins' object
+     * Right now it's simple operations, but I imagine this plugins object growing significantly
      */
     permissions.forEach((perm) => {
       if (perm.type === "operation") {
         const operation = flatOperations.find((op) => op.operationId === perm.key);
 
         if (operation) {
-          const possiblyRecursiveInterface = appName === app.app_name ? accumulator : prepareEnvironmentInterface(referencedApp, apps);
-          accumulator[appName].operations[operation.operationId] = async (routeParams) => {
+          const possiblyRecursiveInterface = pluginName === plugin.name ? accumulator : prepareEnvironmentInterface(referencedPlugin, plugins);
+          accumulator[pluginName].operations[operation.operationId] = async (routeParams) => {
             // Don't want to create an infinite loop
             const operationsArr = await operation.execution({
               ...routeParams,
-              apps: possiblyRecursiveInterface,
+              plugins: possiblyRecursiveInterface,
             });
-            return executeOperations(operationsArr, referencedApp.id);
+            return executeOperations(operationsArr, referencedPlugin.id);
           };
         }
       }
@@ -223,21 +212,21 @@ async function prepareEnvironmentInterface(app, apps) {
         const tableConfig = tables[perm.key];
 
         // If there is a table by the perm key name
-        if (!accumulator[appName].tables[perm.key]) {
-          accumulator[appName].tables[perm.key] = {};
+        if (!accumulator[pluginName].tables[perm.key]) {
+          accumulator[pluginName].tables[perm.key] = {};
         }
 
-        accumulator[appName].tables[perm.key].getTableName = () => getTableIdentifier(tableConfig.table_name, app.id);
+        accumulator[pluginName].tables[perm.key].getTableName = () => getTableIdentifier(tableConfig.table_name, plugin.id);
       }
     });
 
     return accumulator;
   }, {});
 
-  // Let's append current app information too...
-  environmentInterface["_current-app"] = {};
-  environmentInterface["_current-app"].id = app.id;
-  environmentInterface["_current-app"].secrets = [{}];
+  // Let's append current plugin information too...
+  environmentInterface["_current-plugin"] = {};
+  environmentInterface["_current-plugin"].id = plugin.id;
+  environmentInterface["_current-plugin"].secrets = [{}];
 
   return environmentInterface;
 }
@@ -249,11 +238,11 @@ async function prepareEnvironmentInterface(app, apps) {
  * 3. per-domain authorization
  * 4. TODO: API token authorization header
  */
-async function authenticationMiddleware(req, res, next, app, permissionsAppId, usersAppId) {
+export async function authenticationMiddleware(req, res, next, plugin, permissionsPluginId, userPluginId) {
   const templateRoutePath = req.route.path;
   const formattedRoutePath = templateRoutePath.replace(/:(\w+)/g, "{$1}");
   const identifier = "/" + formattedRoutePath.split("/").slice(3).join("/");
-  const activeRoute = app.routes.routes.filter((r) => r.path === identifier).find((r) => r.method.toUpperCase() === req.method.toUpperCase());
+  const activeRoute = plugin.routes.routes.filter((r) => r.path === identifier).find((r) => r.method.toUpperCase() === req.method.toUpperCase());
   const privacySetting = activeRoute.privacy;
 
   // Determine route privacy -- public or private
@@ -271,7 +260,7 @@ async function authenticationMiddleware(req, res, next, app, permissionsAppId, u
   // Check to see if permission record exists for this
   const { endpoints } = await import("./installs/deco-permissions/app.js");
   const permissionFetch = endpoints.paths["/"].get.execution;
-  // This execution ONLY applies to this specific user app
+  // This execution ONLY applies to this specific user plugin
   const permissionFetchOps = await permissionFetch({
     req: {
       query: {
@@ -281,7 +270,7 @@ async function authenticationMiddleware(req, res, next, app, permissionsAppId, u
       },
     },
   });
-  const { permissions } = await executeOperations(permissionFetchOps, permissionsAppId);
+  const { permissions } = await executeOperations(permissionFetchOps, permissionsPluginId);
   if (permissions?.rows?.length > 0) {
     const permissionDoc = permissions.rows[0];
     // Permission granted and expiration is in the future
@@ -301,9 +290,9 @@ async function authenticationMiddleware(req, res, next, app, permissionsAppId, u
   if (cookieAuthToken) {
     try {
       res.locals._server.login_jwt_key = LOGIN_JWT_KEY;
-      const usersApp = await import("./installs/deco-users/app.js");
-      const validate = getParallelRouteExecutionContext(usersAppId);
-      const { data, status } = await validate({ req, res }, usersApp.endpoints.paths["/authenticate"].get);
+      const usersPlugin = await import("./installs/deco-users/app.js");
+      const validate = getParallelRouteExecutionContext(usersPluginId);
+      const { data, status } = await validate({ req, res }, usersPlugin.endpoints.paths["/authenticate"].get);
       if (status === 200) {
         res.locals._user.id = data.sub;
         return next();
@@ -353,18 +342,18 @@ async function authenticationMiddleware(req, res, next, app, permissionsAppId, u
   // If protected, break down cookie from request
 }
 
-// This will be passed to app middleware and execution functions
+// This will be passed to plugin middleware and execution functions
 // This lets us run execution for a single statement
-function getExecuteOperationFunctionInAppContext(appId) {
-  return async (operation) => executeOperations([() => [operation]], appId);
+export function getExecuteOperationFunctionInPluginContext(pluginId) {
+  return async (operation) => executeOperations([() => [operation]], pluginId);
 }
 
-// Provides us with context to run a route statement from within an app
+// Provides us with context to run a route statement from within an plugin
 // Middleware will only run on routes, everything else should be ran via `execution`
-function getParallelRouteExecutionContext(appId) {
+export function getParallelRouteExecutionContext(pluginId) {
   // Pass in req, res, etc...
-  // Apps will be responsible for passing context
-  // This gives apps an opportunity to customize the context of a route execution
+  // Plugins will be responsible for passing context
+  // This gives plugins an opportunity to customize the context of a route execution
   // e.g. changing req.params or req.body
   return async (context, operation) => {
     // Here, instead of a funtion, operation should just be a route object
@@ -373,7 +362,7 @@ function getParallelRouteExecutionContext(appId) {
       // Memory object can be a valid return from execution
       // We check for array because executionOps should return array of database execution statements
       // Memory object is just { key: value }
-      const memory = Array.isArray(operations) ? await executeOperations(operations, appId) : operations;
+      const memory = Array.isArray(operations) ? await executeOperations(operations, pluginId) : operations;
       if (operation.handleReturn) {
         const formatted = await operation.handleReturn({ ...context, memory });
         return formatted;
@@ -386,8 +375,8 @@ function getParallelRouteExecutionContext(appId) {
 /**
  * This function will construct our endpoints
  */
-async function buildRouteSubset({ server, user }) {
-  const apps = await loadApps();
+export async function buildRouteSubset({ server, user }) {
+  const plugins = await loadPlugins();
 
   // Flush old routes so that we can rebuild
   if (server._router) {
@@ -405,32 +394,32 @@ async function buildRouteSubset({ server, user }) {
   }
 
   await Promise.all(
-    apps.map(async (installedApp) => {
-      const modulePath = path.resolve(`./installs/${installedApp.app_name}/app.js`);
+    plugins.map(async (installedPlugin) => {
+      const modulePath = path.resolve(`./installs/${installedPlugin.name}/app.js`);
 
       /**
        * TODO: Solve ESM dynamic import
        * Modules can only be loaded once per file execution
        * Rerunning this function does not matter because node caches the import, which cannot be cleaned
-       * So if an app's file contents are updated while the server is running,
+       * So if a plugin's file contents are updated while the server is running,
        * then that file's updates will not be reflected here
        * A full server restart is required to clear the import cache
        * Fucking gross and terrible node...
        * https://github.com/nodejs/node/issues/49442
        * https://ar.al/2021/02/22/cache-busting-in-node.js-dynamic-esm-imports/
        */
-      const app = await import(modulePath);
+      const plugin = await import(modulePath);
 
-      const endpoints = app.endpoints;
-      const executeOperationInAppContext = getExecuteOperationFunctionInAppContext(installedApp.id);
-      const executeParallelRoute = getParallelRouteExecutionContext(installedApp.id);
+      const endpoints = plugin.endpoints;
+      const executeOperationInPluginContext = getExecuteOperationFunctionInPluginContext(installedPlugin.id);
+      const executeParallelRoute = getParallelRouteExecutionContext(installedPlugin.id);
 
-      // We only want to expose user stuff to the auth app
-      // The core apps sometimes require us to expose stuff we don't normally want to expose
+      // We only want to expose user stuff to the auth plugin
+      // The core plugins sometimes require us to expose stuff we don't normally want to expose
       // Maybe in the future we can invent a better strategy for this, but for now this is good
-      const exposeUserDetails = installedApp.core_key === CORE_KEYS.users;
-      const exposeJwtKey = installedApp.core_key === CORE_KEYS.users;
-      const exposeServerSecret = installedApp.core_key === CORE_KEYS.apps;
+      const exposeUserDetails = installedPlugin.core_key === CORE_KEYS.users;
+      const exposeJwtKey = installedPlugin.core_key === CORE_KEYS.users;
+      const exposeServerSecret = installedPlugin.core_key === CORE_KEYS.plugins;
 
       // Append metadata if needed
       const preAuthMiddleware = (exposeUser, exposeJwt, exposeServer) => {
@@ -438,34 +427,34 @@ async function buildRouteSubset({ server, user }) {
           res.locals._user = {};
           res.locals._server = {};
 
-          // Append user to res.locals to auth app
+          // Append user to res.locals to auth plugin
           if (exposeUser) {
             res.locals._user = user;
           }
 
           // We have to make an exception here because how can a user set a secret before logging in
-          // All other secrets should be set via app secrets
+          // All other secrets should be set via plugin secrets
           // Changing this will also log out all users
           if (exposeJwt) {
             res.locals._server.login_jwt_key = LOGIN_JWT_KEY;
           }
 
-          // Necessary for encrypting app secrets
+          // Necessary for encrypting plugin secrets
           if (exposeServer) {
-            res.locals._server.encryption_string = APP_SECRET_ENCRYPTION_STRING;
+            res.locals._server.encryption_string = PLUGIN_SECRET_ENCRYPTION_STRING;
           }
           return next();
         };
       };
 
-      // Decrypt this app's secrets for this user
+      // Decrypt this plugin's secrets for this user
       const secrets = Object.fromEntries(
-        Object.entries(installedApp.secrets).map(([key, value]) => [key, decryptSecret(value, APP_SECRET_ENCRYPTION_STRING, installedApp.initialization_vector)])
+        Object.entries(installedPlugin.secrets).map(([key, value]) => [key, decryptSecret(value, PLUGIN_SECRET_ENCRYPTION_STRING, installedPlugin.initialization_vector)])
       );
 
       // Let's assemble our route's environment interface as a static object
-      // We only have to do this once per app's route generation
-      const environmentInterface = await prepareEnvironmentInterface(installedApp, apps);
+      // We only have to do this once per plugin's route generation
+      const environmentInterface = await prepareEnvironmentInterface(installedPlugin, plugins);
 
       await Promise.all(
         Object.keys(endpoints.paths).map(async (routePath) => {
@@ -480,7 +469,6 @@ async function buildRouteSubset({ server, user }) {
           const methods = Object.keys(routeObj);
           await Promise.all(
             methods.map(async (method) => {
-              const routeKey = `${installedApp.app_name}~${method}~${formattedPathString}`;
               const methodDef = routeObj[method];
 
               // Route middleware will run before any user executions has happened
@@ -494,9 +482,9 @@ async function buildRouteSubset({ server, user }) {
                   const executionContext = {
                     req,
                     res,
-                    apps: environmentInterface,
+                    plugins: environmentInterface,
                     secrets,
-                    runStatement: executeOperationInAppContext,
+                    runStatement: executeOperationInPluginContext,
                     runRoute: executeParallelRoute,
                   };
 
@@ -519,7 +507,7 @@ async function buildRouteSubset({ server, user }) {
                   // Memory object can be a valid return from execution
                   // We check for array because executionOps should return array of database execution statements
                   // Memory object is just { key: value }
-                  const memory = Array.isArray(executionOps) ? await executeOperations(executionOps, installedApp.id) : executionOps;
+                  const memory = Array.isArray(executionOps) ? await executeOperations(executionOps, installedPlugin.id) : executionOps;
 
                   const routeReturn = methodDef.handleReturn
                     ? await methodDef.handleReturn({
@@ -545,26 +533,26 @@ async function buildRouteSubset({ server, user }) {
               const nothingFn = (_req, _res, next) => next();
               const operationMiddleware =
                 methodDef?.middleware && typeof methodDef?.middleware === "function"
-                  ? (req, res, next) => methodDef?.middleware({ req, res, next, runStatement: executeOperationInAppContext, runRoute: executeParallelRoute })
+                  ? (req, res, next) => methodDef?.middleware({ req, res, next, runStatement: executeOperationInPluginContext, runRoute: executeParallelRoute })
                   : nothingFn;
 
               // Let's get this while we have everything here
-              // Authentication middleware needs this ID because it has to execute a GET from the permissions app context
+              // Authentication middleware needs this ID because it has to execute a GET from the permissions plugin context
               // Might as well pas it in here while we have it
-              const permissionsAppId = apps.find((a) => a.core_key === CORE_KEYS.permissions).id;
-              const usersAppId = apps.find((a) => a.core_key === CORE_KEYS.users).id;
+              const permissionsPluginId = plugins.find((a) => a.core_key === CORE_KEYS.permissions).id;
+              const usersPluginId = plugins.find((a) => a.core_key === CORE_KEYS.users).id;
 
               // This is a dynamic way of setting express's routes
               // e.g. server.get('/items', callback())
               server[method](
-                `/apps/${installedApp.app_name}${formattedPathString}`,
+                `/apps/${installedPlugin.plugin_name}${formattedPathString}`,
                 preAuthMiddleware(exposeUserDetails, exposeJwtKey, exposeServerSecret),
-                (req, res, next) => authenticationMiddleware(req, res, next, installedApp, permissionsAppId, usersAppId),
+                (req, res, next) => authenticationMiddleware(req, res, next, installedPlugin, permissionsPluginId, usersPluginId),
                 routeMiddleware,
                 operationMiddleware,
                 routeCallback
               );
-              console.log(`Built ${(methodDef?.privacy || "PRIVATE").toLowerCase()} route ${method.toUpperCase()} /apps/${installedApp.app_name}${formattedPathString}`);
+              console.log(`Built ${(methodDef?.privacy || "PRIVATE").toLowerCase()} route ${method.toUpperCase()} /apps/${installedPlugin.name}${formattedPathString}`);
             })
           );
         })
@@ -573,7 +561,7 @@ async function buildRouteSubset({ server, user }) {
   );
 }
 
-async function installApp(uri, opts = {}) {
+export async function installPlugin(uri, opts = {}) {
   const { isLocal = false, coreKey, id } = opts;
   try {
     let manifest;
@@ -611,31 +599,31 @@ async function installApp(uri, opts = {}) {
     // Find the package URI from the "package_uri" field in the manifest
     const packageUri = manifest.package_uri;
 
-    let appCode;
+    let pluginCode;
     if (!isLocal) {
       // Make a fetch request to the JavaScript file and save it inside the folder we created
-      const appResponse = await fetch(packageUri);
-      if (!appResponse.ok) {
+      const pluginResponse = await fetch(packageUri);
+      if (!pluginResponse.ok) {
         throw new Error("Failed to fetch app.js");
       }
 
-      appCode = await appResponse.text();
+      pluginCode = await pluginResponse.text();
     } else {
       const navPieces = uri.split("/");
       const removedManifestPath = navPieces.slice(0, navPieces.length - 1);
       removedManifestPath.push(packageUri);
       const newPath = path.join(__dirname, removedManifestPath.join("/"));
       // Read the file
-      appCode = await fs.readFile(newPath, "utf-8");
+      pluginCode = await fs.readFile(newPath, "utf-8");
     }
 
     // Save app.js in the folder
-    await fs.writeFile(path.join(installFolder, "app.js"), appCode);
+    await fs.writeFile(path.join(installFolder, "app.js"), pluginCode);
 
-    const apps = await loadApps();
-    const installations = await import("./installs/deco-apps/app.js");
+    const plugins = await loadPlugins();
+    const installations = await import("./installs/deco-plugins/app.js");
 
-    if (!apps) {
+    if (!plugins) {
       const installOperations = await installations.onInstall({});
       await executeOperations(installOperations, id);
       const createExecution = installations.endpoints.paths["/"].post.execution;
@@ -643,33 +631,30 @@ async function installApp(uri, opts = {}) {
         req: {
           body: {
             id,
-            app_name: manifest.name,
+            name: manifest.name,
             manifest_uri: uri,
             granted_permissions: [],
             core_key: coreKey,
             routes: flattenOpenApiJson(installations.endpoints.paths),
           },
         },
-        runStatement: getExecuteOperationFunctionInAppContext(id),
+        runStatement: getExecuteOperationFunctionInPluginContext(id),
         runRoute: getParallelRouteExecutionContext(id),
       });
       await executeOperations(createOperations, id);
 
       // Now that we have our table, let's run through the install again
-      return await installApp(uri, { isLocal, coreKey, id });
+      return await installPlugin(uri, { isLocal, coreKey, id });
     }
-
-    // Theres a file called "apps.json" in this folder
-    // Edit apps.json to append the necessary information
 
     const appPath = `${installFolder}/app.js`;
 
     // Load app package contents
-    const appData = await import(appPath);
+    const pluginData = await import(appPath);
 
-    const existingApp = apps.find((a) => a?.app_name === manifest.name);
-    const appId = existingApp?.id || id || uuid();
-    const installsAppId = CORE_APPS[CORE_KEYS.apps].id;
+    const existingPlugin = plugins.find((a) => a?.name === manifest.name);
+    const pluginId = existingPlugin?.id || id || uuid();
+    const installsPluginId = CORE_PLUGINS[CORE_KEYS.plugins].id;
 
     const hasDependencies = manifest?.depends_on && manifest?.depends_on?.length > 0;
 
@@ -677,17 +662,17 @@ async function installApp(uri, opts = {}) {
     if (hasDependencies) {
       // await Promise.all(
       // 	manifest.depends_on.map(async (dep) => {
-      // 		return installApp(dep.manifest_uri);
+      // 		return installPlugin(dep.manifest_uri);
       // 	})
       // );
     }
 
-    const tables = await appData.tables();
+    const tables = await pluginData.tables();
 
     const metaPermissions = manifest.meta_access.map((ma) => ({
       type: "meta",
       key: ma.key,
-      app_name: "_meta",
+      plugin_name: "_meta",
     }));
     const depPermissions = !hasDependencies
       ? []
@@ -696,71 +681,73 @@ async function installApp(uri, opts = {}) {
           if (dep.manifest_uri === uri) {
             return [];
           }
-          const referencedDep = apps.find((a) => a.manifest_uri === dep.manifest_uri);
-          const manifestName = referencedDep.app_name;
+          const referencedDep = plugins.find((a) => a.manifest_uri === dep.manifest_uri);
+          const manifestName = referencedDep.name;
           const tablePermissions = dep.requested_permissions.tables
             ? dep.requested_permissions.tables.map((depTable) => ({
                 type: "table",
                 key: depTable.id,
-                app_name: manifestName,
+                plugin_name: manifestName,
               }))
             : [];
           const operationsPermissions = dep.requested_permissions.operations.map((depOp) => ({
             type: "operation",
             key: depOp.id,
-            app_name: manifestName,
+            plugin_name: manifestName,
           }));
           return [...tablePermissions, ...operationsPermissions];
         });
 
     const grantedPermissions = [...metaPermissions, ...depPermissions.flat()];
     const saveData = {
-      id: appId,
-      app_name: manifest.name,
+      id: pluginId,
+      name: manifest.name,
       manifest_uri: uri,
       granted_permissions: grantedPermissions,
       core_key: coreKey || "",
-      routes: flattenOpenApiJson(appData.endpoints.paths),
+      routes: flattenOpenApiJson(pluginData.endpoints.paths),
     };
 
     // Remove existing version
-    if (!!existingApp) {
+    if (!!existingPlugin) {
       const update = installations.endpoints.paths["/{id}"].patch.execution;
-      // This execution ONLY applies to this specific user app
+      // This execution ONLY applies to this specific user plugin
       const updateExecutionOps = await update({
         req: {
-          params: { id: appId },
+          params: { id: pluginId },
           body: saveData,
         },
       });
-      await executeOperations(updateExecutionOps, installsAppId);
+      await executeOperations(updateExecutionOps, installsPluginId);
     } else {
       const createExecution = installations.endpoints.paths["/"].post.execution;
-      // This execution ONLY applies to this specific user app
+      // This execution ONLY applies to this specific user plugin
       const creationExecutionOps = await createExecution({
         req: { body: saveData },
-        runStatement: getExecuteOperationFunctionInAppContext(installsAppId),
-        runRoute: getParallelRouteExecutionContext(installsAppId),
+        runStatement: getExecuteOperationFunctionInPluginContext(installsPluginId),
+        runRoute: getParallelRouteExecutionContext(installsPluginId),
       });
-      await executeOperations(creationExecutionOps, installsAppId);
+      await executeOperations(creationExecutionOps, installsPluginId);
     }
 
     // Write the updated JSON content back to the file
     // The null and 2 parameters make the output pretty-printed with 2 spaces for indentation.
-    // const output = JSON.stringify(apps, null, 2);
+    // const output = JSON.stringify(plugins, null, 2);
     // await fs.writeFile(APPS_FILE_PATH, output, "utf8");
 
-    if (!existingApp) {
+    if (!existingPlugin) {
       // Execute the onInstall command
-      if (appData.onInstall) {
-        const installOperations = await appData.onInstall({});
-        await executeOperations(installOperations, appId);
+      if (pluginData.onInstall) {
+        const installOperations = await pluginData.onInstall({});
+        await executeOperations(installOperations, pluginId);
       }
     }
 
-    console.log("App installation successful.");
+    console.log(`Plugin ${uri} installation successful.`);
+    return { manifest, plugin: pluginData, save: saveData };
   } catch (error) {
-    return Promise.reject(error);
+    console.error(error);
+    return Promise.reject(`Failed installing ${uri}: ${error.toString()}`);
   }
 }
 
@@ -769,7 +756,7 @@ async function installApp(uri, opts = {}) {
 // Identification
 // Profiles
 // Notifications
-// Apps installed / available routes
+// Plugins installed / available routes
 // Logs
 // Permissions Requests
 
@@ -778,17 +765,17 @@ async function installApp(uri, opts = {}) {
 // Messages (between friends)
 // Friends
 
-// Apps with specific rules that have to be installed for the server to function correctly
-const CORE_KEYS = {
+// Plugins with specific rules that have to be installed for the server to function correctly
+export const CORE_KEYS = {
   users: "users",
-  apps: "apps",
+  plugins: "plugins",
   logs: "logs",
   permissionRequests: "permission-requests",
   permissions: "permissions",
   notifications: "notifications",
 };
 
-const CORE_APPS = {
+export const CORE_PLUGINS = {
   [CORE_KEYS.users]: {
     manifest: {
       path: "../deco-users/dist/manifest.json",
@@ -804,41 +791,41 @@ const CORE_APPS = {
       path: "../deco-permission-requests/dist/manifest.json",
     },
   },
-  [CORE_KEYS.apps]: {
-    // We have to create this ID first so that we can run the installApp function
+  [CORE_KEYS.plugins]: {
+    // We have to create this ID first so that we can run the installPlugin function
     // Ideally this ID gets a static generation upon first server build. It should not change
     // when the server restarts, so running a function here will not work
     id: "aa3d07b0-3042-44ea-b6b9-b30e3437a449",
     manifest: {
-      path: "../deco-apps/dist/manifest.json",
+      path: "../deco-plugins/dist/manifest.json",
     },
   },
 };
 
-async function createOwnerIfNotThereAlready() {
-  const apps = await loadApps();
-  const usersApp = apps.find((a) => a.core_key === CORE_KEYS.users);
-  const { endpoints } = await import(`./installs/${usersApp.app_name}/app.js`);
+export async function createOwnerIfNotThereAlready() {
+  const plugins = await loadPlugins();
+  const usersPlugin = plugins.find((a) => a.core_key === CORE_KEYS.users);
+  const { endpoints } = await import(`./installs/${usersPlugin.name}/app.js`);
   const getExecution = await endpoints.paths["/"].get.execution();
-  const usersFetch = await executeOperations(getExecution, usersApp.id);
+  const usersFetch = await executeOperations(getExecution, usersPlugin.id);
   const allUsers = usersFetch.allUsers.rows;
   if (allUsers && allUsers?.length > 0) return;
   const postExecution = endpoints.paths["/"].post.execution;
   const postExecutionOps = await postExecution({ req: { body: { password: DEFAULT_USER_PASSWORD, subdomain: "root" } }, res: { locals: {} } });
-  const results = await executeOperations(postExecutionOps, usersApp.id);
+  const results = await executeOperations(postExecutionOps, usersPlugin.id);
   console.log("New owner created.");
   return results;
 }
 
-async function buildRoutes(mainServer) {
+export async function buildRoutes(mainServer) {
   // For each user, let's build our route subset
-  const apps = await loadApps();
-  const usersApp = apps.find((a) => a.core_key === CORE_KEYS.users);
-  const { endpoints } = await import(`./installs/${usersApp.app_name}/app.js`);
+  const plugins = await loadPlugins();
+  const usersPlugin = plugins.find((a) => a.core_key === CORE_KEYS.users);
+  const { endpoints } = await import(`./installs/${usersPlugin.name}/app.js`);
   const execution = endpoints.paths["/"].get.execution;
-  // This execution ONLY applies to this specific user app
+  // This execution ONLY applies to this specific user plugin
   const executionOps = await execution();
-  const results = await executeOperations(executionOps, usersApp.id);
+  const results = await executeOperations(executionOps, usersPlugin.id);
   const users = results["allUsers"].rows;
   const subservers = await Promise.all(
     users.map(async (user) => {
@@ -870,19 +857,19 @@ async function buildRoutes(mainServer) {
   return subservers;
 }
 
-const server = express();
+export const server = express();
 
-// Upon first load, we can assume the db and these core apps are for the root user
-// Eventually we'll have to install all of these core apps per user
-// Users app should only belong with the root user
+// Upon first load, we can assume the db and these core plugins are for the root user
+// Eventually we'll have to install all of these core plugins per user
+// Users plugin should only belong with the root user
 // Users will need their own DB connection configuration
 // Users should be able to bring multiple databases too, not just one
-// Can create a databases table, apps can refer to a database ID so we know which pool to hit with our queries
+// Can create a databases table, plugins can refer to a database ID so we know which pool to hit with our queries
 try {
-  await installApp(CORE_APPS[CORE_KEYS.apps].manifest.path, { isLocal: true, coreKey: CORE_KEYS.apps, id: CORE_APPS[CORE_KEYS.apps].id });
-  await installApp(CORE_APPS[CORE_KEYS.users].manifest.path, { isLocal: true, coreKey: CORE_KEYS.users });
-  await installApp(CORE_APPS[CORE_KEYS.permissions].manifest.path, { isLocal: true, coreKey: CORE_KEYS.permissions });
-  await installApp(CORE_APPS[CORE_KEYS.permissionRequests].manifest.path, { isLocal: true, coreKey: CORE_KEYS.permissionRequests });
+  await installPlugin(CORE_PLUGINS[CORE_KEYS.plugins].manifest.path, { isLocal: true, coreKey: CORE_KEYS.plugins, id: CORE_PLUGINS[CORE_KEYS.plugins].id });
+  await installPlugin(CORE_PLUGINS[CORE_KEYS.users].manifest.path, { isLocal: true, coreKey: CORE_KEYS.users });
+  await installPlugin(CORE_PLUGINS[CORE_KEYS.permissions].manifest.path, { isLocal: true, coreKey: CORE_KEYS.permissions });
+  await installPlugin(CORE_PLUGINS[CORE_KEYS.permissionRequests].manifest.path, { isLocal: true, coreKey: CORE_KEYS.permissionRequests });
   await createOwnerIfNotThereAlready();
   await buildRoutes(server);
   server.listen(PORT, () => {
@@ -911,24 +898,25 @@ server.get("/_meta/directory", async (req, res) => {
   // users will have to log in... how? link to personal?
   // log in flow...
   // enter your url endpoint
-  // app go POST to url/authorize, get a URL in response
+  // plugin go POST to url/authorize, get a URL in response
   // send user to URL
   // 		if logged in, user can grant permissions, etc
   // 		if logged out, log in then ^
-  // after acceptance or denial, redirect user back to app
+  // after acceptance or denial, redirect user back to plugin
   //
   // Do we want other services to be able to create users?
   // How do we have things pass auth
   // Middleware only triggered on a request
+  return res.status(200).send({ directory: [] });
 });
 
-// Imagine someone is looking through an app store and clicks "install"
+// Imagine someone is looking through an plugin store and clicks "install"
 // We can send a request to this endpoint
-// Logic can be reused when an app requests an app be installed
+// Logic can be reused when an plugin requests an plugin be installed
 server.get("/_meta/install", async (req, res) => {
   try {
-    console.log("Installing app...");
-    await installApp("http://localhost:4321/manifest.json");
+    console.log("Installing plugin...");
+    await installPlugin("http://localhost:4321/manifest.json");
 
     console.log("Rebuilding routes...");
     // At this point, we have to do a teardown and rebuild of the server routes
@@ -938,7 +926,7 @@ server.get("/_meta/install", async (req, res) => {
     console.log("Routes rebuilt successfully.");
     return res.status(200).send({ success: true });
   } catch (err) {
-    console.log("App installation failed.");
+    console.log("Plugin installation failed.");
     console.log(err);
     return res.status(500).send({ success: false });
   }

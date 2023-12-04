@@ -11,7 +11,7 @@ const d = () => ({
 						id UUID PRIMARY KEY,
 						domain VARCHAR(255),
 						resource VARCHAR(255),
-						app_name VARCHAR(255),
+						plugin_name VARCHAR(255),
 						method VARCHAR(255),
 						expires TIMESTAMP,
 						created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -27,17 +27,23 @@ const d = () => ({
         summary: "Create a permission",
         operationId: "createPermission",
         execution: async ({ req: e }) => {
-          const { domain: s, resource: t, method: r, expiration: n, app_name: p } = e.body;
-          let i = n;
+          const {
+            domain: s,
+            resource: t,
+            method: r,
+            expiration: a,
+            plugin_name: p
+          } = e.body;
+          let i = a;
           if (!i) {
             const o = /* @__PURE__ */ new Date();
-            let a = new Date(o);
-            a.setFullYear(o.getFullYear() + 1), i = a.getTime();
+            let n = new Date(o);
+            n.setFullYear(o.getFullYear() + 1), i = n.getTime();
           }
           return [
             () => [
               {
-                statement: "INSERT INTO permissions (id, domain, resource, method, app_name, expires) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)",
+                statement: "INSERT INTO permissions (id, domain, resource, method, plugin_name, expires) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)",
                 data_key: "newPermission",
                 values: [
                   s.toUpperCase(),
