@@ -3453,14 +3453,12 @@ var Dr = {
   createSigner: Do
 };
 const Fo = () => ({
-  // Key can be anything, but should be reflective of the table name
-  // this will be accessible via apps.appName.tables.tableName.modify()
   users: {
     table_name: "users"
   }
 }), qo = () => ({
   JWT_KEY: {}
-}), Vo = ({ req: o, res: t, user: r, apps: n }) => [
+}), Vo = () => [
   () => [
     {
       statement: `CREATE TABLE users (

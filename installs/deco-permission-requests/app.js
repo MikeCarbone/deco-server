@@ -1,10 +1,8 @@
 const u = () => ({
-  // Key can be anything, but should be reflective of the table name
-  // this will be accessible via apps.appName.tables.tableName.modify()
-  users: {
+  permissionRequests: {
     table_name: "permission_requests"
   }
-}), d = ({ req: s, res: e, user: r, apps: i }) => [
+}), d = () => [
   () => [
     {
       statement: `CREATE TABLE permission_requests (
@@ -26,13 +24,13 @@ const u = () => ({
       post: {
         summary: "Create a permission request",
         operationId: "createPermissionRequest",
-        execution: async ({ req: s, apps: e }) => {
+        execution: async ({ req: s }) => {
           const {
-            domain: r,
-            resource: i,
-            plugin_name: o,
-            method: a,
-            suggested_expiration: t
+            domain: e,
+            resource: t,
+            plugin_name: i,
+            method: o,
+            suggested_expiration: n
           } = s.body;
           return [
             () => [
@@ -40,11 +38,11 @@ const u = () => ({
                 statement: "INSERT INTO permission_requests (id, domain, resource, method, name, suggested_expiration) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)",
                 data_key: "newPermission",
                 values: [
-                  r.toUpperCase(),
-                  i.toUpperCase(),
-                  a.toUpperCase(),
-                  o,
-                  t
+                  e.toUpperCase(),
+                  t.toUpperCase(),
+                  o.toUpperCase(),
+                  i,
+                  n
                 ]
               }
             ]
@@ -56,7 +54,7 @@ const u = () => ({
         summary: "Fetch permission requests",
         operationId: "fetchPermissionReqests",
         execution: (s) => {
-          const { resource: e, method: r, domain: i } = s.query;
+          const { resource: e, method: t, domain: i } = s.query;
           return [
             // Function to pass results from one sync operation to another
             // First will be empty of course
@@ -66,7 +64,7 @@ const u = () => ({
                 data_key: "permissions",
                 values: [
                   e.toUpperCase(),
-                  r.toUpperCase(),
+                  t.toUpperCase(),
                   i.toUpperCase()
                 ]
               }
@@ -128,27 +126,27 @@ const u = () => ({
         summary: "Accept a permission request",
         operationId: "acceptPermissionRequest",
         execution: async (s) => {
-          var n;
-          const { req: e, res: r, apps: i, runRoute: o } = s, a = (n = e.body) == null ? void 0 : n.expiration, { data: t } = await o(
+          var a;
+          const { req: e, res: t, plugins: i, runRoute: o } = s, n = (a = e.body) == null ? void 0 : a.expiration, { data: r } = await o(
             s,
             p.paths["/{id}"].get
           );
-          return t ? (await i["deco-permissions"].operations.createPermission({
-            res: r,
+          return r ? (await i["deco-permissions"].operations.createPermission({
+            res: t,
             req: {
               ...e,
               body: {
-                domain: t.domain,
-                resource: t.resource,
-                method: t.method,
-                expiration: a || t.suggested_expiration,
-                plugin_name: t.plugin_name
+                domain: r.domain,
+                resource: r.resource,
+                method: r.method,
+                expiration: n || r.suggested_expiration,
+                plugin_name: r.plugin_name
               }
             }
           }), await o(
             s,
             p.paths["/{id}"].delete
-          )) : r.status(404).send({ message: "Record not found" });
+          )) : t.status(404).send({ message: "Record not found" });
         }
       }
     }

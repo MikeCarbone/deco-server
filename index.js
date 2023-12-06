@@ -67,9 +67,18 @@ function flattenOpenApiJson(paths) {
 }
 
 function getTableIdentifier(tableName, id) {
-  return `${tableName}_${id}`;
+  return `"${tableName}_${id}"`;
 }
 
+/**
+ *
+ * Okay so this doesn't work because when we reference other tables,
+ * it tries to append the current plugin ID to the referenced table
+ * Even though that should happen through a structured permission fetch and not be dynamic
+ * So we get something like plugins_aa3d07b0-3042-44ea-b6b9-b30e3437a449_676b5013-12e3-4dba
+ * Which is appending the current plugin ID dynamically onto the static one that was granted
+ * So we'll need something else
+ */
 function editRelnameWithId(obj, id) {
   if (typeof obj === "object") {
     if (Array.isArray(obj)) {
@@ -88,6 +97,45 @@ function editRelnameWithId(obj, id) {
   }
 }
 
+/**
+ * This is a very manual way of parsing out SQL statements so we can append the IDs
+ * It's very physical and notsuper reliable (not thoroughly tested)
+ * Also not sure if it handles upper / lower casing correctly
+ */
+function formatStatement(statement, pluginId) {
+  const stdStatement = statement.toUpperCase();
+  statement = statement.replaceAll(";", "");
+
+  if (
+    stdStatement.startsWith("CREATE TABLE") ||
+    stdStatement.startsWith("INSERT INTO") ||
+    stdStatement.startsWith("DELETE FROM") ||
+    stdStatement.startsWith("DROP TABLE") ||
+    stdStatement.startsWith("ALTER TABLE")
+  ) {
+    const fragments = statement.split(" ");
+    fragments[2] = getTableIdentifier(fragments[2], pluginId);
+    const combined = fragments.join(" ");
+    return combined;
+  }
+
+  if (stdStatement.startsWith("UPDATE")) {
+    const fragments = statement.split(" ");
+    fragments[1] = getTableIdentifier(fragments[1], pluginId);
+    const combined = fragments.join(" ");
+    return combined;
+  }
+
+  if (stdStatement.startsWith("SELECT")) {
+    const fragments = statement.split(" ");
+    const fromIndex = fragments.indexOf("FROM") > -1 ? fragments.indexOf("FROM") : fragments.indexOf("from");
+    const tableNameIndex = fromIndex + 1;
+    fragments[tableNameIndex] = getTableIdentifier(fragments[tableNameIndex], pluginId);
+    const combined = fragments.join(" ");
+    return combined;
+  }
+}
+
 // Execute synchronous executions
 export async function executeOperations(operationsArr, pluginId, memory = {}, index = 0) {
   if (!operationsArr?.length) return memory;
@@ -100,14 +148,20 @@ export async function executeOperations(operationsArr, pluginId, memory = {}, in
     statementOps.map(async (statementOp) => {
       const { statement, data_key, values = [] } = statementOp;
 
+      // New approach, maybe temporary? See comments above about AST parsing approach
+      console.log("Old statement", statement);
+      const newStatement = formatStatement(statement, pluginId);
+      console.log("New statement", newStatement);
       // use AST to parse out table name and append plugin's designated uuid
       // multi-word table names have to use underscores or wrap the name in quotes
       // for meta endpoints, we'll use underscores as a standard
-      const ast = parse(statement);
+      // const ast = parse(statement);
 
       // Append the pluginId to the referenced tables
-      editRelnameWithId(ast, pluginId);
-      const newStatement = deparse(ast);
+      // editRelnameWithId(ast, pluginId);
+
+      // const newStatement = deparse(ast);
+
       const transaction = await client.query(newStatement, values);
       memory[data_key] = transaction;
     })
@@ -124,17 +178,17 @@ export async function executeOperations(operationsArr, pluginId, memory = {}, in
  */
 export async function prepareEnvironmentInterface(plugin, plugins) {
   /**
-   * Initial process is to take the granted_permissions and separate into each plugin
+   * Initial process is to take the permissions and separate into each plugin
    * We fetch
    */
 
   /**
    * Create object that looks like
    * { pluginName: { permissions: [{ type: "operation", key: "getTodos" }] }, ... }
-   * This will put all of an plugin's permissions in the same bucket
+   * This will put all of a plugin's permissions in the same bucket
    * This will make the later import easier as we only have to do it once per plugin
    */
-  const requiredModulesObj = plugin.granted_permissions.granted.reduce((acc, perm) => {
+  const requiredModulesObj = plugin.permissions.granted.reduce((acc, perm) => {
     const pluginName = perm.plugin_name;
     if (!acc[pluginName]) {
       acc[pluginName] = { permissions: [], plugin_name: pluginName };
@@ -143,9 +197,9 @@ export async function prepareEnvironmentInterface(plugin, plugins) {
     return acc;
   }, {});
 
-  // Put that into an array and remove meta ones
   /**
-   * Now we have an array like
+   * Put that into an array and remove meta ones
+   * This gives us an array like
    * [{ plugin_name: "something", permissions: [] }, ...]
    */
   const requiredModules = Object.keys(requiredModulesObj)
@@ -185,7 +239,7 @@ export async function prepareEnvironmentInterface(plugin, plugins) {
     const flatOperations = flattenOpenApiJson(endpoints.paths);
 
     // Let's find the plugin we're working within
-    const referencedPlugin = plugins.find((a) => a.name === pluginName);
+    const referencedPlugin = plugins.find((plug) => plug.name === pluginName);
 
     /**
      * This is where we'll be able to append operations to our 'plugins' object
@@ -215,8 +269,8 @@ export async function prepareEnvironmentInterface(plugin, plugins) {
         if (!accumulator[pluginName].tables[perm.key]) {
           accumulator[pluginName].tables[perm.key] = {};
         }
-
-        accumulator[pluginName].tables[perm.key].getTableName = () => getTableIdentifier(tableConfig.table_name, plugin.id);
+        const tableNameWithId = getTableIdentifier(tableConfig.table_name, referencedPlugin.id);
+        accumulator[pluginName].tables[perm.key].getTableName = () => tableNameWithId;
       }
     });
 
@@ -633,7 +687,7 @@ export async function installPlugin(uri, opts = {}) {
             id,
             name: manifest.name,
             manifest_uri: uri,
-            granted_permissions: [],
+            permissions: [],
             core_key: coreKey,
             routes: flattenOpenApiJson(installations.endpoints.paths),
           },
@@ -690,11 +744,13 @@ export async function installPlugin(uri, opts = {}) {
                 plugin_name: manifestName,
               }))
             : [];
-          const operationsPermissions = dep.requested_permissions.operations.map((depOp) => ({
-            type: "operation",
-            key: depOp.id,
-            plugin_name: manifestName,
-          }));
+          const operationsPermissions = dep.requested_permissions?.operations
+            ? dep.requested_permissions.operations.map((depOp) => ({
+                type: "operation",
+                key: depOp.id,
+                plugin_name: manifestName,
+              }))
+            : [];
           return [...tablePermissions, ...operationsPermissions];
         });
 
@@ -703,7 +759,7 @@ export async function installPlugin(uri, opts = {}) {
       id: pluginId,
       name: manifest.name,
       manifest_uri: uri,
-      granted_permissions: grantedPermissions,
+      permissions: { granted: grantedPermissions },
       core_key: coreKey || "",
       routes: flattenOpenApiJson(pluginData.endpoints.paths),
     };
@@ -738,7 +794,8 @@ export async function installPlugin(uri, opts = {}) {
     if (!existingPlugin) {
       // Execute the onInstall command
       if (pluginData.onInstall) {
-        const installOperations = await pluginData.onInstall({});
+        const env = await prepareEnvironmentInterface(saveData, plugins);
+        const installOperations = await pluginData.onInstall({ plugins: env });
         await executeOperations(installOperations, pluginId);
       }
     }
@@ -779,6 +836,11 @@ export const CORE_PLUGINS = {
   [CORE_KEYS.users]: {
     manifest: {
       path: "../deco-users/dist/manifest.json",
+    },
+  },
+  [CORE_KEYS.notifications]: {
+    manifest: {
+      path: "../deco-notifications/dist/manifest.json",
     },
   },
   [CORE_KEYS.permissions]: {
@@ -870,6 +932,7 @@ try {
   await installPlugin(CORE_PLUGINS[CORE_KEYS.users].manifest.path, { isLocal: true, coreKey: CORE_KEYS.users });
   await installPlugin(CORE_PLUGINS[CORE_KEYS.permissions].manifest.path, { isLocal: true, coreKey: CORE_KEYS.permissions });
   await installPlugin(CORE_PLUGINS[CORE_KEYS.permissionRequests].manifest.path, { isLocal: true, coreKey: CORE_KEYS.permissionRequests });
+  await installPlugin(CORE_PLUGINS[CORE_KEYS.notifications].manifest.path, { isLocal: true, coreKey: CORE_KEYS.notifications });
   await createOwnerIfNotThereAlready();
   await buildRoutes(server);
   server.listen(PORT, () => {

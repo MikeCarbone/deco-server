@@ -1,20 +1,21 @@
 const d = () => ({
-  permissions: {
-    table_name: "permissions"
+  notifications: {
+    table_name: "notifications"
   }
-}), m = () => [
+}), m = ({ plugins: e }) => [
   () => [
     {
-      statement: `CREATE TABLE permissions (
+      statement: `CREATE TABLE notifications (
 						id UUID PRIMARY KEY,
-						domain VARCHAR(255),
-						resource VARCHAR(255),
-						plugin_name VARCHAR(255),
-						method VARCHAR(255),
-						expires TIMESTAMP,
-						created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+						plugin_id UUID,
+						message TEXT,
+						is_read BOOLEAN DEFAULT FALSE,
+						created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+						link VARCHAR(255),
+						expiry_date DATE,
+						FOREIGN KEY (plugin_id) REFERENCES ${e["deco-plugins"].tables.plugins.getTableName()}(id)
 					);`,
-      data_key: "permissionsTable",
+      data_key: "notificationsTable",
       values: []
     }
   ]
@@ -28,15 +29,15 @@ const d = () => ({
           const {
             domain: t,
             resource: s,
-            method: r,
+            method: i,
             expiration: a,
             plugin_name: p
           } = e.body;
-          let i = a;
-          if (!i) {
-            const o = /* @__PURE__ */ new Date();
-            let n = new Date(o);
-            n.setFullYear(o.getFullYear() + 1), i = n.getTime();
+          let r = a;
+          if (!r) {
+            const n = /* @__PURE__ */ new Date();
+            let o = new Date(n);
+            o.setFullYear(n.getFullYear() + 1), r = o.getTime();
           }
           return [
             () => [
@@ -46,9 +47,9 @@ const d = () => ({
                 values: [
                   t.toUpperCase(),
                   s.toUpperCase(),
-                  r.toUpperCase(),
+                  i.toUpperCase(),
                   p,
-                  i
+                  r
                 ]
               }
             ]
@@ -60,7 +61,7 @@ const d = () => ({
         summary: "Fetch permissions",
         operationId: "fetchPermissions",
         execution: ({ req: e }) => {
-          const { resource: t, method: s, domain: r } = e.query;
+          const { resource: t, method: s, domain: i } = e.query;
           return [
             // Function to pass results from one sync operation to another
             // First will be empty of course
@@ -71,7 +72,7 @@ const d = () => ({
                 values: [
                   t.toUpperCase(),
                   s.toUpperCase(),
-                  r.toUpperCase()
+                  i.toUpperCase()
                 ]
               }
             ]
@@ -142,11 +143,11 @@ const d = () => ({
       }
     }
   }
-}, c = () => {
+}, l = () => {
 };
 export {
   u as endpoints,
   m as onInstall,
-  c as postInstall,
+  l as postInstall,
   d as tables
 };

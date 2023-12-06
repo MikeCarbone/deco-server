@@ -1,6 +1,6 @@
 # Deco Server
 
-Deco Server is an easy way to set up a web server that is compatible with the Deco protocol and ecosystem of apps.
+Deco Server is an easy way to set up a web server that is compatible with the Deco protocol and ecosystem of plugins.
 
 ## Installation
 
