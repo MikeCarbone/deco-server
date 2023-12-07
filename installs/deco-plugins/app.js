@@ -1,7 +1,10 @@
 import m from "crypto";
-const a = () => ({
+const i = () => ({
   plugins: {
     table_name: "plugins"
+  },
+  installRequests: {
+    table_name: "install_requests"
   }
 }), p = (t) => ({
   routes: t.map((e) => ({
@@ -12,19 +15,19 @@ const a = () => ({
     privacy: (e == null ? void 0 : e.privacy) || "PRIVATE"
   }))
 });
-function _(t, e, n) {
-  const i = m.createCipheriv(
+function R(t, e, a) {
+  const n = m.createCipheriv(
     "aes-256-cbc",
     Buffer.from(e, "hex"),
-    Buffer.from(n, "hex")
+    Buffer.from(a, "hex")
   );
-  let s = i.update(t, "utf-8", "hex");
-  return s += i.final("hex"), s;
+  let s = n.update(t, "utf-8", "hex");
+  return s += n.final("hex"), s;
 }
-const E = () => [
+const f = () => [
   () => [
     {
-      statement: `CREATE TABLE ${a().plugins.table_name} (
+      statement: `CREATE TABLE ${i().plugins.table_name} (
 						id UUID PRIMARY KEY,
 						name VARCHAR(255),
 						manifest_uri VARCHAR(255),
@@ -37,17 +40,27 @@ const E = () => [
 					);`,
       data_key: "pluginsTable",
       values: []
+    },
+    {
+      statement: `CREATE TABLE ${i().installRequests.table_name} (
+						id UUID PRIMARY KEY,
+						manifest_uri VARCHAR(255),
+						requested_by_uri VARCHAR(255),
+						created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+					);`,
+      data_key: "installationRequestsTable",
+      values: []
     }
   ]
-], R = {
+], g = {
   paths: {
     "/": {
       post: {
         summary: "Create a record of a plugin installation",
         operationId: "createInstallationRecord",
-        execution: async ({ req: t, res: e, runStatement: n }) => {
-          const s = (await n({
-            statement: `SELECT * FROM ${a().plugins.table_name} WHERE name=$1`,
+        execution: async ({ req: t, res: e, runStatement: a }) => {
+          const s = (await a({
+            statement: `SELECT * FROM ${i().plugins.table_name} WHERE name=$1`,
             data_key: "existingPlugins",
             values: [t.body.name]
           })).existingPlugins.rows;
@@ -60,13 +73,13 @@ const E = () => [
             permissions: u = [],
             core_key: l,
             routes: c
-          } = t.body, y = p(c), g = m.randomBytes(16).toString("hex");
+          } = t.body, _ = p(c), y = m.randomBytes(16).toString("hex");
           return [
             // Function to pass results from one sync operation to another
             // First will be empty of course
             () => [
               {
-                statement: `INSERT INTO ${a().plugins.table_name} (id, name, manifest_uri, permissions, core_key, routes, secrets, initialization_vector) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                statement: `INSERT INTO ${i().plugins.table_name} (id, name, manifest_uri, permissions, core_key, routes, secrets, initialization_vector) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
                 data_key: "newPlugin",
                 values: [
                   r,
@@ -74,9 +87,9 @@ const E = () => [
                   d,
                   u,
                   l,
-                  y,
+                  _,
                   {},
-                  g
+                  y
                 ]
               }
             ]
@@ -92,7 +105,7 @@ const E = () => [
           // First will be empty of course
           () => [
             {
-              statement: `SELECT * FROM ${a().plugins.table_name};`,
+              statement: `SELECT * FROM ${i().plugins.table_name};`,
               data_key: "allPlugins",
               values: []
             }
@@ -115,7 +128,7 @@ const E = () => [
             // First will be empty of course
             () => [
               {
-                statement: `DELETE FROM ${a().plugins.table_name} WHERE id = $1;`,
+                statement: `DELETE FROM ${i().plugins.table_name} WHERE id = $1;`,
                 data_key: "deletedInstallationRecord",
                 values: [e]
               }
@@ -133,7 +146,7 @@ const E = () => [
             // First will be empty of course
             () => [
               {
-                statement: `SELECT * FROM ${a().plugins.table_name} WHERE id = $1;`,
+                statement: `SELECT * FROM ${i().plugins.table_name} WHERE id = $1;`,
                 data_key: "fetchedInstallationRecord",
                 values: [e]
               }
@@ -155,19 +168,19 @@ const E = () => [
         summary: "Update a plugin installation record",
         operationId: "updateInstallationRecord",
         execution: ({ req: t }) => {
-          const { id: e } = t.params, { manifest_uri: n, permissions: i, core_key: s, routes: r } = t.body, o = p(r);
+          const { id: e } = t.params, { manifest_uri: a, permissions: n, core_key: s, routes: r } = t.body, o = p(r);
           return [
             // Function to pass results from one sync operation to another
             // First will be empty of course
             () => [
               {
-                statement: `UPDATE ${a().plugins.table_name} SET manifest_uri = $2, permissions = $3, core_key = $4, routes = $5
+                statement: `UPDATE ${i().plugins.table_name} SET manifest_uri = $2, permissions = $3, core_key = $4, routes = $5
 									WHERE id = $1;`,
                 data_key: "updatedInstallationRecord",
                 values: [
                   e,
+                  a,
                   n,
-                  i,
                   s,
                   o
                 ]
@@ -182,10 +195,10 @@ const E = () => [
         summary: "Save a plugin secret",
         operationId: "savePluginSecret",
         execution: async (t) => {
-          const { req: e, res: n, runRoute: i } = t, { id: s } = e.params, { key: r, value: o } = e.body, d = n.locals._server.encryption_string, { data: u } = await i(
+          const { req: e, res: a, runRoute: n } = t, { id: s } = e.params, { key: r, value: o } = e.body, d = a.locals._server.encryption_string, { data: u } = await n(
             t,
-            R.paths["/{id}"].get
-          ), l = u.secrets, c = _(
+            g.paths["/{id}"].get
+          ), l = u.secrets, c = R(
             o,
             d,
             u.initialization_vector
@@ -193,7 +206,7 @@ const E = () => [
           return l[r] = c, u.secrets = l, [
             () => [
               {
-                statement: `UPDATE ${a().plugins.table_name} SET secrets = $1 WHERE id = $2`,
+                statement: `UPDATE ${i().plugins.table_name} SET secrets = $1 WHERE id = $2`,
                 data_key: "secretSaveRecord",
                 values: [l, s]
               }
@@ -211,75 +224,156 @@ const E = () => [
           };
         }
       }
+    },
+    "/install-requests": {
+      post: {
+        summary: "Request a plugin be installed",
+        operationId: "requestPluginInstall",
+        privacy: "PUBLIC",
+        execution: async (t) => {
+          const { req: e, plugins: a } = t, { manifest_uri: n } = e.body, s = e.get("host"), r = await fetch(n);
+          if (!r.ok)
+            return {
+              status: 500,
+              data: null,
+              message: "Manifest JSON could not be fetched"
+            };
+          const o = await r.json();
+          return a["deco-notifications"] && await a["deco-notifications"].operations.createNotification({
+            ...t,
+            req: {
+              ...t.req,
+              body: {
+                plugin_id: a._currentPlugin.id,
+                message: `${s} wants to install ${o.name} from ${n}`
+              }
+            }
+          }), [
+            () => [
+              {
+                statement: `INSERT INTO ${i().installRequests.table_name} (id, manifest_uri, requested_by_uri) VALUES (gen_random_uuid(), $1, $2)`,
+                data_key: "installRequest",
+                values: [n, s]
+              }
+            ]
+          ];
+        }
+      }
+    },
+    "/install-requests/{id}": {
+      delete: {
+        summary: "Delete an installation request",
+        operationId: "deleteInstallRequest",
+        execution: async ({ req: t }) => {
+          const { id: e } = t.params;
+          return [
+            () => [
+              {
+                statement: `DELETE FROM ${i().installRequests.table_name} WHERE id = $1`,
+                data_key: "installRequest",
+                values: [e]
+              }
+            ]
+          ];
+        }
+      }
     }
   },
   components: {
     schemas: {
-      User: {
+      Plugin: {
         type: "object",
         properties: {
           id: {
             type: "string",
             format: "uuid",
-            description: "Unique identifier for the user"
+            description: "The unique identifier for the plugin."
           },
-          password: {
+          name: {
             type: "string",
-            minLength: 8,
-            description: "User password (hashed or encrypted)"
+            description: "The name of the plugin."
           },
-          is_owner: {
-            type: "boolean",
-            default: !1,
-            description: "Indicates if the user is an owner"
+          manifest_uri: {
+            type: "string",
+            description: "The URI of the manifest associated with the plugin."
           },
           permissions: {
             type: "object",
-            description: "User permissions",
-            properties: {
-              read: {
-                type: "boolean",
-                default: !1,
-                description: "Permission to read"
-              },
-              write: {
-                type: "boolean",
-                default: !1,
-                description: "Permission to write"
-              }
-            }
+            description: "Permissions associated with the plugin.",
+            example: {}
           },
-          user_details: {
+          core_key: {
+            type: "string",
+            description: "The core key associated with the plugin."
+          },
+          routes: {
             type: "object",
-            description: "Details about the user",
-            properties: {
-              full_name: {
-                type: "string",
-                minLength: 1,
-                description: "Full name of the user"
-              },
-              email: {
-                type: "string",
-                format: "email",
-                description: "Email address of the user"
-              }
-            }
+            description: "Routes associated with the plugin.",
+            example: {}
+          },
+          secrets: {
+            type: "object",
+            description: "Secrets associated with the plugin.",
+            example: {}
+          },
+          initialization_vector: {
+            type: "string",
+            description: "The initialization vector associated with the plugin."
+          },
+          installed_at: {
+            type: "string",
+            format: "date-time",
+            description: "The timestamp when the plugin was installed.",
+            default: "CURRENT_TIMESTAMP"
+          }
+        },
+        required: [
+          "id",
+          "name",
+          "manifest_uri",
+          "permissions",
+          "core_key",
+          "routes",
+          "secrets",
+          "initialization_vector",
+          "installed_at"
+        ]
+      },
+      InstallRequest: {
+        type: "object",
+        properties: {
+          id: {
+            type: "string",
+            format: "uuid",
+            description: "The unique identifier for the install request."
+          },
+          manifest_uri: {
+            type: "string",
+            description: "The URI of the manifest associated with the install request."
+          },
+          requested_by_uri: {
+            type: "string",
+            description: "The URI of the entity that requested the installation."
           },
           created_at: {
             type: "string",
             format: "date-time",
-            description: "Timestamp when the user was created"
+            description: "The timestamp when the install request was created.",
+            default: "CURRENT_TIMESTAMP"
           }
         },
-        required: ["id", "password"]
+        required: [
+          "id",
+          "manifest_uri",
+          "requested_by_uri",
+          "created_at"
+        ]
       }
     }
   }
-}, h = () => {
 };
 export {
-  R as endpoints,
-  E as onInstall,
-  h as postInstall,
-  a as tables
+  g as endpoints,
+  f as onInstall,
+  i as tables
 };

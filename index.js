@@ -130,9 +130,9 @@ export async function executeOperations(operationsArr, pluginId, memory = {}, in
       const { statement, data_key, values = [] } = statementOp;
 
       // New approach, maybe temporary? See comments above about AST parsing approach
-      const newStatement = formatStatement(statement, pluginId);
+      const formattedStatement = formatStatement(statement, pluginId);
 
-      const transaction = await client.query(newStatement, values);
+      const transaction = await client.query(formattedStatement, values);
       memory[data_key] = transaction;
     })
   );
@@ -248,9 +248,9 @@ export async function prepareEnvironmentInterface(plugin, plugins) {
   }, {});
 
   // Let's append current plugin information too...
-  environmentInterface["_current-plugin"] = {};
-  environmentInterface["_current-plugin"].id = plugin.id;
-  environmentInterface["_current-plugin"].secrets = [{}];
+  environmentInterface._currentPlugin = {};
+  environmentInterface._currentPlugin.id = plugin.id;
+  environmentInterface._currentPlugin.secrets = [{}];
 
   return environmentInterface;
 }
@@ -315,7 +315,7 @@ export async function authenticationMiddleware(req, res, next, plugin, permissio
     try {
       res.locals._server.login_jwt_key = LOGIN_JWT_KEY;
       const usersPlugin = await import("./installs/deco-users/app.js");
-      const validate = getParallelRouteExecutionContext(usersPluginId);
+      const validate = getParallelRouteExecutionContext(userPluginId);
       const { data, status } = await validate({ req, res }, usersPlugin.endpoints.paths["/authenticate"].get);
       if (status === 200) {
         res.locals._user.id = data.sub;
@@ -568,15 +568,16 @@ export async function buildRouteSubset({ server, user }) {
 
               // This is a dynamic way of setting express's routes
               // e.g. server.get('/items', callback())
+              const route = `/plugins/${installedPlugin.name}${formattedPathString}`;
               server[method](
-                `/apps/${installedPlugin.plugin_name}${formattedPathString}`,
+                route,
                 preAuthMiddleware(exposeUserDetails, exposeJwtKey, exposeServerSecret),
                 (req, res, next) => authenticationMiddleware(req, res, next, installedPlugin, permissionsPluginId, usersPluginId),
                 routeMiddleware,
                 operationMiddleware,
                 routeCallback
               );
-              console.log(`Built ${(methodDef?.privacy || "PRIVATE").toLowerCase()} route ${method.toUpperCase()} /apps/${installedPlugin.name}${formattedPathString}`);
+              console.log(`Built ${(methodDef?.privacy || "PRIVATE").toLowerCase()} route ${method.toUpperCase()} ${route}`);
             })
           );
         })
@@ -873,6 +874,11 @@ export async function buildRoutes(mainServer) {
       // POST _meta/login
       // POST _meta/change-password
 
+      // While yes we're using express, it'll be more helpful to know this is a Deco server in responses
+      serverInstance.use((_req, res, next) => {
+        res.setHeader("X-Powered-By", "Deco");
+        next();
+      });
       serverInstance.use(morgan("tiny"));
       serverInstance.use(express.json());
 

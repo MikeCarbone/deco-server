@@ -10,7 +10,20 @@
     "logo": ""
   },
   "meta_access": [],
-  "depends_on": [],
+  "depends_on": [
+    {
+      "manifest_uri": "../deco-notifications/dist/manifest.json",
+      "is_required": false,
+      "requested_permissions": {
+        "operations": [
+          {
+            "id": "createNotification",
+            "is_required": false
+          }
+        ]
+      }
+    }
+  ],
   "options": {},
   "options_uri": "https://carbonemike.com/to-do-options.json",
   "past_versions": [
