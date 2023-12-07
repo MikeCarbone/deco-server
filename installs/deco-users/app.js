@@ -3456,9 +3456,7 @@ const Fo = () => ({
   users: {
     table_name: "users"
   }
-}), qo = () => ({
-  JWT_KEY: {}
-}), Vo = () => [
+}), qo = () => [
   () => [
     {
       statement: `CREATE TABLE users (
@@ -3478,31 +3476,12 @@ const Fo = () => ({
 function Uo(o, t, r) {
   return qe.scryptSync(o, t, 32).toString("hex") === r;
 }
-const Go = {
+const Vo = {
   paths: {
     "/": {
       post: {
         summary: "Create a server user",
         operationId: "createUser",
-        // routeMiddleware: async ({ res, next, runStatement }) => {
-        // 	const data = await runStatement({
-        // 		statement: `SELECT * FROM users`,
-        // 		data_key: "users",
-        // 		values: [],
-        // 	});
-        // 	const users = data.users.rows;
-        // 	const isFirstUser = !users || !users.length;
-        // 	if (isFirstUser) {
-        // 		console.log("No users, no protection");
-        // 	} else {
-        // 		console.log("Users exist, let's protect.");
-        // 		return res
-        // 			.status(401)
-        // 			.send({ message: "Authentication required." });
-        // 	}
-        // 	res.locals.isFirstUser = isFirstUser;
-        // 	return next();
-        // },
         execution: async ({ req: o, res: t }) => {
           const { password: r, subdomain: n } = o.body;
           if (r.length < 15)
@@ -3511,8 +3490,6 @@ const Go = {
             });
           const f = qe.randomBytes(16).toString("hex"), a = qe.scryptSync(r, f, 32).toString("hex");
           return [
-            // Function to pass results from one sync operation to another
-            // First will be empty of course
             () => [
               {
                 statement: "INSERT INTO users (id, subdomain, hash, salt, permissions, user_details) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)",
@@ -3533,13 +3510,10 @@ const Go = {
           };
         }
       },
-      // We don't want to expose this externally kinda
       get: {
         summary: "Fetch all server users",
         operationId: "fetchUsers",
         execution: () => [
-          // Function to pass results from one sync operation to another
-          // First will be empty of course
           () => [
             {
               statement: "SELECT * FROM users",
@@ -3683,12 +3657,9 @@ const Go = {
       }
     }
   }
-}, Jo = () => {
 };
 export {
-  Go as endpoints,
-  Vo as onInstall,
-  Jo as postInstall,
-  qo as secrets,
+  Vo as endpoints,
+  qo as onInstall,
   Fo as tables
 };

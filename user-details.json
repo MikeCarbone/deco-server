@@ -138,6 +138,13 @@
           }
         ]
       },
+      "about.pronouns": {
+        "display": "Pronouns",
+        "description": "User's preferred pronouns",
+        "useful_for": "Profile creation",
+        "example_value": "He/Him",
+        "validation": []
+      },
       "about.picture.anonymous": {
         "display": "Anonymous Picture",
         "description": "Anonymous or placeholder picture",

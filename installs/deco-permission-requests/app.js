@@ -1,8 +1,8 @@
-const u = () => ({
+const m = () => ({
   permissionRequests: {
     table_name: "permission_requests"
   }
-}), d = () => [
+}), p = () => [
   () => [
     {
       statement: `CREATE TABLE permission_requests (
@@ -18,20 +18,20 @@ const u = () => ({
       values: []
     }
   ]
-], p = {
+], u = {
   paths: {
     "/": {
       post: {
         summary: "Create a permission request",
         operationId: "createPermissionRequest",
-        execution: async ({ req: s }) => {
+        execution: async ({ req: t }) => {
           const {
             domain: e,
-            resource: t,
+            resource: s,
             plugin_name: i,
-            method: o,
-            suggested_expiration: n
-          } = s.body;
+            method: n,
+            suggested_expiration: o
+          } = t.body;
           return [
             () => [
               {
@@ -39,32 +39,29 @@ const u = () => ({
                 data_key: "newPermission",
                 values: [
                   e.toUpperCase(),
-                  t.toUpperCase(),
-                  o.toUpperCase(),
+                  s.toUpperCase(),
+                  n.toUpperCase(),
                   i,
-                  n
+                  o
                 ]
               }
             ]
           ];
         }
       },
-      // We don't want to expose this externally kinda
       get: {
         summary: "Fetch permission requests",
         operationId: "fetchPermissionReqests",
-        execution: (s) => {
-          const { resource: e, method: t, domain: i } = s.query;
+        execution: (t) => {
+          const { resource: e, method: s, domain: i } = t.query;
           return [
-            // Function to pass results from one sync operation to another
-            // First will be empty of course
             () => [
               {
                 statement: "SELECT * FROM permission_requests WHERE resource=$1, method=$2, domain=$3",
                 data_key: "permissions",
                 values: [
                   e.toUpperCase(),
-                  t.toUpperCase(),
+                  s.toUpperCase(),
                   i.toUpperCase()
                 ]
               }
@@ -77,11 +74,9 @@ const u = () => ({
       get: {
         summary: "Get a permission request record",
         operationId: "getPermissionRequest",
-        execution: ({ req: s }) => {
-          const { id: e } = s.params;
+        execution: ({ req: t }) => {
+          const { id: e } = t.params;
           return [
-            // Function to pass results from one sync operation to another
-            // First will be empty of course
             () => [
               {
                 statement: "SELECT * FROM permission_requests WHERE id=$1",
@@ -91,8 +86,8 @@ const u = () => ({
             ]
           ];
         },
-        handleReturn: ({ memory: s }) => {
-          const { permissionRecord: e } = s;
+        handleReturn: ({ memory: t }) => {
+          const { permissionRecord: e } = t;
           return e != null && e.rows[0] ? {
             status: 200,
             data: e == null ? void 0 : e.rows[0]
@@ -105,11 +100,9 @@ const u = () => ({
       delete: {
         summary: "Deletes a permission request record",
         operationId: "deletePermissionRequest",
-        execution: ({ req: s }) => {
-          const { id: e } = s.params;
+        execution: ({ req: t }) => {
+          const { id: e } = t.params;
           return [
-            // Function to pass results from one sync operation to another
-            // First will be empty of course
             () => [
               {
                 statement: "DELETE FROM permission_requests WHERE id=$1",
@@ -125,99 +118,92 @@ const u = () => ({
       post: {
         summary: "Accept a permission request",
         operationId: "acceptPermissionRequest",
-        execution: async (s) => {
+        execution: async (t) => {
           var a;
-          const { req: e, res: t, plugins: i, runRoute: o } = s, n = (a = e.body) == null ? void 0 : a.expiration, { data: r } = await o(
-            s,
-            p.paths["/{id}"].get
+          const { req: e, res: s, plugins: i, runRoute: n } = t, o = (a = e.body) == null ? void 0 : a.expiration, { data: r } = await n(
+            t,
+            u.paths["/{id}"].get
           );
           return r ? (await i["deco-permissions"].operations.createPermission({
-            res: t,
+            res: s,
             req: {
               ...e,
               body: {
                 domain: r.domain,
                 resource: r.resource,
                 method: r.method,
-                expiration: n || r.suggested_expiration,
+                expiration: o || r.suggested_expiration,
                 plugin_name: r.plugin_name
               }
             }
-          }), await o(
-            s,
-            p.paths["/{id}"].delete
-          )) : t.status(404).send({ message: "Record not found" });
+          }), await n(
+            t,
+            u.paths["/{id}"].delete
+          )) : s.status(404).send({ message: "Record not found" });
         }
       }
     }
   },
   components: {
     schemas: {
-      User: {
+      PermissionRequest: {
         type: "object",
         properties: {
           id: {
             type: "string",
             format: "uuid",
-            description: "Unique identifier for the user"
+            description: "The unique identifier for the permission request."
           },
-          password: {
+          domain: {
             type: "string",
-            minLength: 8,
-            description: "User password (hashed or encrypted)"
+            description: "The domain associated with the permission request."
           },
-          is_owner: {
-            type: "boolean",
-            default: !1,
-            description: "Indicates if the user is an owner"
+          resource: {
+            type: "string",
+            description: "The resource for which permission is requested."
           },
-          permissions: {
-            type: "object",
-            description: "User permissions",
-            properties: {
-              read: {
-                type: "boolean",
-                default: !1,
-                description: "Permission to read"
-              },
-              write: {
-                type: "boolean",
-                default: !1,
-                description: "Permission to write"
-              }
-            }
+          plugin_name: {
+            type: "string",
+            description: "The name of the plugin making the permission request."
           },
-          user_details: {
-            type: "object",
-            description: "Details about the user",
-            properties: {
-              full_name: {
-                type: "string",
-                minLength: 1,
-                description: "Full name of the user"
-              },
-              email: {
-                type: "string",
-                format: "email",
-                description: "Email address of the user"
-              }
-            }
+          method: {
+            type: "string",
+            description: "The HTTP method for which permission is requested (e.g., GET, POST)."
+          },
+          suggested_expiration: {
+            type: "string",
+            format: "date-time",
+            description: "The suggested expiration timestamp for the permission."
           },
           created_at: {
             type: "string",
             format: "date-time",
-            description: "Timestamp when the user was created"
+            description: "The timestamp when the permission request was created."
           }
         },
-        required: ["id", "password"]
+        required: [
+          "id",
+          "domain",
+          "resource",
+          "plugin_name",
+          "method",
+          "created_at"
+        ],
+        example: {
+          id: "123e4567-e89b-12d3-a456-426614174001",
+          domain: "example.com",
+          resource: "/api/data",
+          plugin_name: "sample_plugin",
+          method: "GET",
+          suggested_expiration: "2023-12-31T23:59:59Z",
+          created_at: "2023-01-01T12:00:00Z"
+        }
       }
     }
   }
-}, m = () => {
 };
 export {
-  p as endpoints,
-  d as onInstall,
-  m as postInstall,
-  u as tables
+  u as endpoints,
+  p as onInstall,
+  m as tables
 };

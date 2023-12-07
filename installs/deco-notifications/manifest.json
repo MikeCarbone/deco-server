@@ -12,7 +12,7 @@
   "meta_access": [],
   "depends_on": [
     {
-      "manifest_uri": "../deco-plugins/dist/manifest.json",
+      "manifest_uri": "../deco-core/packages/deco-plugins/dist/manifest.json",
       "is_required": true,
       "requested_permissions": {
         "tables": [

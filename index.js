@@ -586,6 +586,22 @@ export async function buildRouteSubset({ server, user }) {
   );
 }
 
+/**
+ * Options object for configuring the installation of a plugin.
+ *
+ * @typedef {Object} InstallPluginOptions
+ * @property {boolean} [isLocal=false] - Indicates whether the plugin installation should be performed locally. Default is false.
+ * @property {string} coreKey - The core key associated with the plugin installation.
+ * @property {string} id - The identifier for the plugin being installed.
+ */
+
+/**
+ * Installs a plugin with the specified URI and options.
+ *
+ * @param {string} uri - The URI of the plugin to be installed.
+ * @param {InstallPluginOptions} [opts={}] - Options for configuring the plugin installation.
+ * @returns {Promise<void>} A promise that resolves once the plugin is successfully installed.
+ */
 export async function installPlugin(uri, opts = {}) {
   const { isLocal = false, coreKey, id } = opts;
   try {
@@ -645,9 +661,14 @@ export async function installPlugin(uri, opts = {}) {
     // Save app.js in the folder
     await fs.writeFile(path.join(installFolder, "app.js"), pluginCode);
 
-    const plugins = await loadPlugins();
+    let plugins = await loadPlugins();
     const installations = await import("./installs/deco-plugins/app.js");
 
+    /**
+     * If there is no plugins data, that means this is the first install
+     * and we need our plugins table before continuing
+     * this if statement will create the table, short circuit the function, and start the installation over
+     */
     if (!plugins) {
       const installOperations = await installations.onInstall({});
       await executeOperations(installOperations, id);
@@ -683,16 +704,51 @@ export async function installPlugin(uri, opts = {}) {
 
     const hasDependencies = manifest?.depends_on && manifest?.depends_on?.length > 0;
 
+    let depInstalled = false;
+
     // Install dependencies
     if (hasDependencies) {
-      // await Promise.all(
-      // 	manifest.depends_on.map(async (dep) => {
-      // 		return installPlugin(dep.manifest_uri);
-      // 	})
-      // );
+      // Running into an async issue where this promise.all is resolving as complete
+      // before dependent installations are finishing
+      await Promise.all(
+        manifest.depends_on.map(async (dep) => {
+          // Check if it's already installed
+          const alreadyInstalled = plugins.find((a) => a.manifest_uri === dep.manifest_uri);
+          if (alreadyInstalled) {
+            console.log(`Found dependency ${dep.manifest_uri}, but already installed. Skipping...`);
+            return;
+          }
+
+          // Check if its a core plugin
+          const corePlugins = Object.values(CORE_KEYS);
+          const corePluginMatch = corePlugins
+            .map((corePluginKey) => {
+              const corePlugin = CORE_PLUGINS[corePluginKey];
+              const isUriMatch = corePlugin?.manifest?.path === dep.manifest_uri;
+              if (isUriMatch) {
+                console.log(`Found a reference to a core plugin: ${corePluginKey}`);
+                return { ...corePlugin, key: corePluginKey, isMatch: true };
+              }
+            })
+            .find((item) => item?.isMatch === true);
+
+          console.log(`Awaiting install of ${dep.manifest_uri}...`);
+
+          depInstalled = true;
+          // Add circular reference of current URI to prevent deep deps from installing this same app, triggering loop
+          return installPlugin(dep.manifest_uri, {
+            isLocal: corePluginMatch && dep.manifest_uri.startsWith(".."),
+            coreKey: corePluginMatch?.key,
+          });
+        })
+      );
+      console.log(`Finished dependency resolution for ${uri}`);
     }
 
-    const tables = await pluginData.tables();
+    // Reload plugins after resolving dependencies
+    if (depInstalled) {
+      plugins = await loadPlugins();
+    }
 
     const metaPermissions = manifest.meta_access.map((ma) => ({
       type: "meta",
@@ -707,6 +763,7 @@ export async function installPlugin(uri, opts = {}) {
             return [];
           }
           const referencedDep = plugins.find((a) => a.manifest_uri === dep.manifest_uri);
+          // No dep installed
           const manifestName = referencedDep.name;
           const tablePermissions = dep.requested_permissions.tables
             ? dep.requested_permissions.tables.map((depTable) => ({
@@ -806,22 +863,22 @@ export const CORE_KEYS = {
 export const CORE_PLUGINS = {
   [CORE_KEYS.users]: {
     manifest: {
-      path: "../deco-users/dist/manifest.json",
+      path: "../deco-core/packages/deco-users/dist/manifest.json",
     },
   },
   [CORE_KEYS.notifications]: {
     manifest: {
-      path: "../deco-notifications/dist/manifest.json",
+      path: "../deco-core/packages/deco-notifications/dist/manifest.json",
     },
   },
   [CORE_KEYS.permissions]: {
     manifest: {
-      path: "../deco-permissions/dist/manifest.json",
+      path: "../deco-core/packages/deco-permissions/dist/manifest.json",
     },
   },
   [CORE_KEYS.permissionRequests]: {
     manifest: {
-      path: "../deco-permission-requests/dist/manifest.json",
+      path: "../deco-core/packages/deco-permission-requests/dist/manifest.json",
     },
   },
   [CORE_KEYS.plugins]: {
@@ -830,7 +887,7 @@ export const CORE_PLUGINS = {
     // when the server restarts, so running a function here will not work
     id: "aa3d07b0-3042-44ea-b6b9-b30e3437a449",
     manifest: {
-      path: "../deco-plugins/dist/manifest.json",
+      path: "../deco-core/packages/deco-plugins/dist/manifest.json",
     },
   },
 };
@@ -970,8 +1027,3 @@ server.get("/_meta/install", async (req, res) => {
     return res.status(500).send({ success: false });
   }
 });
-
-// admin dashboards
-// control users
-// auth + permissions
-// login

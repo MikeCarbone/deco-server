@@ -12,7 +12,7 @@
   "meta_access": [],
   "depends_on": [
     {
-      "manifest_uri": "../deco-notifications/dist/manifest.json",
+      "manifest_uri": "../deco-core/packages/deco-notifications/dist/manifest.json",
       "is_required": false,
       "requested_permissions": {
         "operations": [

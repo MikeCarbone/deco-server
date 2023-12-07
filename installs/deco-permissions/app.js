@@ -1,8 +1,8 @@
-const d = () => ({
+const m = () => ({
   permissions: {
     table_name: "permissions"
   }
-}), m = () => [
+}), d = () => [
   () => [
     {
       statement: `CREATE TABLE permissions (
@@ -27,16 +27,16 @@ const d = () => ({
         execution: async ({ req: e }) => {
           const {
             domain: t,
-            resource: s,
-            method: r,
+            resource: i,
+            method: s,
             expiration: a,
             plugin_name: p
           } = e.body;
-          let i = a;
-          if (!i) {
-            const o = /* @__PURE__ */ new Date();
-            let n = new Date(o);
-            n.setFullYear(o.getFullYear() + 1), i = n.getTime();
+          let r = a;
+          if (!r) {
+            const n = /* @__PURE__ */ new Date();
+            let o = new Date(n);
+            o.setFullYear(n.getFullYear() + 1), r = o.getTime();
           }
           return [
             () => [
@@ -45,33 +45,30 @@ const d = () => ({
                 data_key: "newPermission",
                 values: [
                   t.toUpperCase(),
+                  i.toUpperCase(),
                   s.toUpperCase(),
-                  r.toUpperCase(),
                   p,
-                  i
+                  r
                 ]
               }
             ]
           ];
         }
       },
-      // We don't want to expose this externally kinda
       get: {
         summary: "Fetch permissions",
         operationId: "fetchPermissions",
         execution: ({ req: e }) => {
-          const { resource: t, method: s, domain: r } = e.query;
+          const { resource: t, method: i, domain: s } = e.query;
           return [
-            // Function to pass results from one sync operation to another
-            // First will be empty of course
             () => [
               {
                 statement: "SELECT * FROM permissions WHERE resource = $1 AND method = $2 AND domain = $3;",
                 data_key: "permissions",
                 values: [
                   t.toUpperCase(),
-                  s.toUpperCase(),
-                  r.toUpperCase()
+                  i.toUpperCase(),
+                  s.toUpperCase()
                 ]
               }
             ]
@@ -82,71 +79,65 @@ const d = () => ({
   },
   components: {
     schemas: {
-      User: {
+      Permission: {
         type: "object",
         properties: {
           id: {
             type: "string",
             format: "uuid",
-            description: "Unique identifier for the user"
+            description: "The unique identifier for the permission."
           },
-          password: {
+          domain: {
             type: "string",
-            minLength: 8,
-            description: "User password (hashed or encrypted)"
+            description: "The domain associated with the permission."
           },
-          is_owner: {
-            type: "boolean",
-            default: !1,
-            description: "Indicates if the user is an owner"
+          resource: {
+            type: "string",
+            description: "The resource for which the permission is granted."
           },
-          permissions: {
-            type: "object",
-            description: "User permissions",
-            properties: {
-              read: {
-                type: "boolean",
-                default: !1,
-                description: "Permission to read"
-              },
-              write: {
-                type: "boolean",
-                default: !1,
-                description: "Permission to write"
-              }
-            }
+          plugin_name: {
+            type: "string",
+            description: "The name of the plugin granting the permission."
           },
-          user_details: {
-            type: "object",
-            description: "Details about the user",
-            properties: {
-              full_name: {
-                type: "string",
-                minLength: 1,
-                description: "Full name of the user"
-              },
-              email: {
-                type: "string",
-                format: "email",
-                description: "Email address of the user"
-              }
-            }
+          method: {
+            type: "string",
+            description: "The HTTP method for which the permission is granted (e.g., GET, POST)."
+          },
+          expires: {
+            type: "string",
+            format: "date-time",
+            description: "The timestamp when the permission expires."
           },
           created_at: {
             type: "string",
             format: "date-time",
-            description: "Timestamp when the user was created"
+            description: "The timestamp when the permission was created."
           }
         },
-        required: ["id", "password"]
+        required: [
+          "id",
+          "domain",
+          "resource",
+          "plugin_name",
+          "method",
+          "expires",
+          "created_at"
+        ],
+        example: {
+          id: "123e4567-e89b-12d3-a456-426614174002",
+          domain: "example.com",
+          resource: "/api/data",
+          plugin_name: "sample_plugin",
+          method: "GET",
+          expires: "2023-12-31T23:59:59Z",
+          created_at: "2023-01-01T12:00:00Z"
+        }
       }
     }
   }
-}, c = () => {
 };
 export {
   u as endpoints,
-  m as onInstall,
-  c as postInstall,
-  d as tables
+  d as onInstall,
+  m as tables
 };

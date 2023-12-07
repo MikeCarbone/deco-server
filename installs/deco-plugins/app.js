@@ -15,14 +15,14 @@ const i = () => ({
     privacy: (e == null ? void 0 : e.privacy) || "PRIVATE"
   }))
 });
-function R(t, e, a) {
+function R(t, e, s) {
   const n = m.createCipheriv(
     "aes-256-cbc",
     Buffer.from(e, "hex"),
-    Buffer.from(a, "hex")
+    Buffer.from(s, "hex")
   );
-  let s = n.update(t, "utf-8", "hex");
-  return s += n.final("hex"), s;
+  let a = n.update(t, "utf-8", "hex");
+  return a += n.final("hex"), a;
 }
 const f = () => [
   () => [
@@ -58,13 +58,13 @@ const f = () => [
       post: {
         summary: "Create a record of a plugin installation",
         operationId: "createInstallationRecord",
-        execution: async ({ req: t, res: e, runStatement: a }) => {
-          const s = (await a({
+        execution: async ({ req: t, res: e, runStatement: s }) => {
+          const a = (await s({
             statement: `SELECT * FROM ${i().plugins.table_name} WHERE name=$1`,
             data_key: "existingPlugins",
             values: [t.body.name]
           })).existingPlugins.rows;
-          if (s != null && s.length)
+          if (a != null && a.length)
             return e.status(400).send({ message: "Plugin name already exists." });
           const {
             id: r,
@@ -75,8 +75,6 @@ const f = () => [
             routes: c
           } = t.body, _ = p(c), y = m.randomBytes(16).toString("hex");
           return [
-            // Function to pass results from one sync operation to another
-            // First will be empty of course
             () => [
               {
                 statement: `INSERT INTO ${i().plugins.table_name} (id, name, manifest_uri, permissions, core_key, routes, secrets, initialization_vector) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
@@ -96,13 +94,10 @@ const f = () => [
           ];
         }
       },
-      // We don't want to expose this externally kinda
       get: {
         summary: "Fetch all plugin installation records",
         operationId: "fetchInstallationRecords",
         execution: () => [
-          // Function to pass results from one sync operation to another
-          // First will be empty of course
           () => [
             {
               statement: `SELECT * FROM ${i().plugins.table_name};`,
@@ -111,7 +106,7 @@ const f = () => [
             }
           ]
         ],
-        handleReturn: ({ memory: t, res: e }) => ({
+        handleReturn: ({ memory: t }) => ({
           status: 200,
           data: t == null ? void 0 : t.allPlugins.rows
         })
@@ -124,8 +119,6 @@ const f = () => [
         execution: ({ req: t }) => {
           const { id: e } = t.params;
           return [
-            // Function to pass results from one sync operation to another
-            // First will be empty of course
             () => [
               {
                 statement: `DELETE FROM ${i().plugins.table_name} WHERE id = $1;`,
@@ -142,8 +135,6 @@ const f = () => [
         execution: ({ req: t }) => {
           const { id: e } = t.params;
           return [
-            // Function to pass results from one sync operation to another
-            // First will be empty of course
             () => [
               {
                 statement: `SELECT * FROM ${i().plugins.table_name} WHERE id = $1;`,
@@ -168,10 +159,8 @@ const f = () => [
         summary: "Update a plugin installation record",
         operationId: "updateInstallationRecord",
         execution: ({ req: t }) => {
-          const { id: e } = t.params, { manifest_uri: a, permissions: n, core_key: s, routes: r } = t.body, o = p(r);
+          const { id: e } = t.params, { manifest_uri: s, permissions: n, core_key: a, routes: r } = t.body, o = p(r);
           return [
-            // Function to pass results from one sync operation to another
-            // First will be empty of course
             () => [
               {
                 statement: `UPDATE ${i().plugins.table_name} SET manifest_uri = $2, permissions = $3, core_key = $4, routes = $5
@@ -179,9 +168,9 @@ const f = () => [
                 data_key: "updatedInstallationRecord",
                 values: [
                   e,
-                  a,
-                  n,
                   s,
+                  n,
+                  a,
                   o
                 ]
               }
@@ -195,7 +184,7 @@ const f = () => [
         summary: "Save a plugin secret",
         operationId: "savePluginSecret",
         execution: async (t) => {
-          const { req: e, res: a, runRoute: n } = t, { id: s } = e.params, { key: r, value: o } = e.body, d = a.locals._server.encryption_string, { data: u } = await n(
+          const { req: e, res: s, runRoute: n } = t, { id: a } = e.params, { key: r, value: o } = e.body, d = s.locals._server.encryption_string, { data: u } = await n(
             t,
             g.paths["/{id}"].get
           ), l = u.secrets, c = R(
@@ -208,7 +197,7 @@ const f = () => [
               {
                 statement: `UPDATE ${i().plugins.table_name} SET secrets = $1 WHERE id = $2`,
                 data_key: "secretSaveRecord",
-                values: [l, s]
+                values: [l, a]
               }
             ]
           ];
@@ -231,7 +220,7 @@ const f = () => [
         operationId: "requestPluginInstall",
         privacy: "PUBLIC",
         execution: async (t) => {
-          const { req: e, plugins: a } = t, { manifest_uri: n } = e.body, s = e.get("host"), r = await fetch(n);
+          const { req: e, plugins: s } = t, { manifest_uri: n } = e.body, a = e.get("host"), r = await fetch(n);
           if (!r.ok)
             return {
               status: 500,
@@ -239,13 +228,13 @@ const f = () => [
               message: "Manifest JSON could not be fetched"
             };
           const o = await r.json();
-          return a["deco-notifications"] && await a["deco-notifications"].operations.createNotification({
+          return s["deco-notifications"] && await s["deco-notifications"].operations.createNotification({
             ...t,
             req: {
               ...t.req,
               body: {
-                plugin_id: a._currentPlugin.id,
-                message: `${s} wants to install ${o.name} from ${n}`
+                plugin_id: s._currentPlugin.id,
+                message: `${a} wants to install ${o.name} from ${n}`
               }
             }
           }), [
@@ -253,7 +242,7 @@ const f = () => [
               {
                 statement: `INSERT INTO ${i().installRequests.table_name} (id, manifest_uri, requested_by_uri) VALUES (gen_random_uuid(), $1, $2)`,
                 data_key: "installRequest",
-                values: [n, s]
+                values: [n, a]
               }
             ]
           ];
