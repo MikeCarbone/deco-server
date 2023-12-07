@@ -1,8 +1,8 @@
-const d = () => ({
+const o = () => ({
   notifications: {
     table_name: "notifications"
   }
-}), m = ({ plugins: e }) => [
+}), s = ({ plugins: i }) => [
   () => [
     {
       statement: `CREATE TABLE notifications (
@@ -13,141 +13,107 @@ const d = () => ({
 						created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 						link VARCHAR(255),
 						expiry_date DATE,
-						FOREIGN KEY (plugin_id) REFERENCES ${e["deco-plugins"].tables.plugins.getTableName()}(id)
+						FOREIGN KEY (plugin_id) REFERENCES ${i["deco-plugins"].tables.plugins.getTableName()}(id)
 					);`,
       data_key: "notificationsTable",
       values: []
     }
   ]
-], u = {
+], r = {
   paths: {
     "/": {
       post: {
-        summary: "Create a permission",
-        operationId: "createPermission",
-        execution: async ({ req: e }) => {
-          const {
-            domain: t,
-            resource: s,
-            method: i,
-            expiration: a,
-            plugin_name: p
-          } = e.body;
-          let r = a;
-          if (!r) {
-            const n = /* @__PURE__ */ new Date();
-            let o = new Date(n);
-            o.setFullYear(n.getFullYear() + 1), r = o.getTime();
-          }
+        summary: "Create a notification",
+        operationId: "createNotification",
+        execution: async ({ req: i }) => {
+          const { plugin_id: t, message: e, link: n, expiry_date: a } = i.body;
           return [
             () => [
               {
-                statement: "INSERT INTO permissions (id, domain, resource, method, plugin_name, expires) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)",
+                statement: "INSERT INTO notifications (id, plugin_id, message, link, expiry_date) VALUES (gen_random_uuid(), $1, $2, $3, $4)",
                 data_key: "newPermission",
                 values: [
-                  t.toUpperCase(),
-                  s.toUpperCase(),
-                  i.toUpperCase(),
-                  p,
-                  r
+                  t,
+                  e,
+                  n,
+                  a
                 ]
               }
             ]
           ];
         }
       },
-      // We don't want to expose this externally kinda
       get: {
-        summary: "Fetch permissions",
-        operationId: "fetchPermissions",
-        execution: ({ req: e }) => {
-          const { resource: t, method: s, domain: i } = e.query;
-          return [
-            // Function to pass results from one sync operation to another
-            // First will be empty of course
-            () => [
-              {
-                statement: "SELECT * FROM permissions WHERE resource = $1 AND method = $2 AND domain = $3;",
-                data_key: "permissions",
-                values: [
-                  t.toUpperCase(),
-                  s.toUpperCase(),
-                  i.toUpperCase()
-                ]
-              }
-            ]
-          ];
-        }
+        summary: "Fetch notifications",
+        operationId: "fetchNotifications",
+        execution: () => [
+          () => [
+            {
+              statement: "SELECT * FROM notifications ORDER BY created_at DESC LIMIT 50;",
+              data_key: "notifications",
+              values: []
+            }
+          ]
+        ]
       }
     }
   },
   components: {
     schemas: {
-      User: {
+      Notification: {
         type: "object",
         properties: {
           id: {
             type: "string",
             format: "uuid",
-            description: "Unique identifier for the user"
+            description: "Unique identifier for the notification (UUID)"
           },
-          password: {
+          plugin_id: {
             type: "string",
-            minLength: 8,
-            description: "User password (hashed or encrypted)"
+            format: "uuid",
+            description: "Unique identifier for the associated plugin (UUID)"
           },
-          is_owner: {
+          message: {
+            type: "string",
+            description: "Notification message"
+          },
+          is_read: {
             type: "boolean",
             default: !1,
-            description: "Indicates if the user is an owner"
-          },
-          permissions: {
-            type: "object",
-            description: "User permissions",
-            properties: {
-              read: {
-                type: "boolean",
-                default: !1,
-                description: "Permission to read"
-              },
-              write: {
-                type: "boolean",
-                default: !1,
-                description: "Permission to write"
-              }
-            }
-          },
-          user_details: {
-            type: "object",
-            description: "Details about the user",
-            properties: {
-              full_name: {
-                type: "string",
-                minLength: 1,
-                description: "Full name of the user"
-              },
-              email: {
-                type: "string",
-                format: "email",
-                description: "Email address of the user"
-              }
-            }
+            description: "Flag indicating whether the notification has been read"
           },
           created_at: {
             type: "string",
             format: "date-time",
-            description: "Timestamp when the user was created"
+            description: "Timestamp indicating the creation date of the notification"
+          },
+          link: {
+            type: "string",
+            maxLength: 255,
+            description: "Link associated with the notification"
+          },
+          expiry_date: {
+            type: "string",
+            format: "date",
+            description: "Date indicating the expiry date of the notification"
           }
         },
-        required: ["id", "password"]
+        required: ["id", "plugin_id", "message", "created_at"],
+        foreignKeys: [
+          {
+            name: "fk_plugin_id",
+            foreignTable: "plugins",
+            foreignField: "id",
+            onUpdate: "CASCADE",
+            onDelete: "CASCADE"
+          }
+        ]
       }
     }
   }
-}, l = () => {
 };
 export {
-  u as endpoints,
-  m as onInstall,
-  l as postInstall,
-  d as tables
+  r as endpoints,
+  s as onInstall,
+  o as tables
 };

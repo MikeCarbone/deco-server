@@ -4,7 +4,6 @@ import { promises as fs } from "fs";
 import path from "path";
 import { v4 as uuid } from "uuid";
 import { fileURLToPath } from "url";
-import pgParse from "pgsql-parser";
 import vhost from "vhost";
 import morgan from "morgan";
 import { createDecipheriv } from "crypto";
@@ -12,8 +11,6 @@ import cookie from "cookie";
 import { client } from "./db/index.js";
 
 import config from "./config.js";
-
-const { parse, deparse } = pgParse;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -72,31 +69,15 @@ function getTableIdentifier(tableName, id) {
 
 /**
  *
- * Okay so this doesn't work because when we reference other tables,
+ * ON WHY WE'RE NOT PARSING AN AST TREE OF THE SQL STATEMENT:
+ *
+ * Okay so AST parsing doesn't work because when we reference other tables,
  * it tries to append the current plugin ID to the referenced table
  * Even though that should happen through a structured permission fetch and not be dynamic
  * So we get something like plugins_aa3d07b0-3042-44ea-b6b9-b30e3437a449_676b5013-12e3-4dba
  * Which is appending the current plugin ID dynamically onto the static one that was granted
  * So we'll need something else
  */
-function editRelnameWithId(obj, id) {
-  if (typeof obj === "object") {
-    if (Array.isArray(obj)) {
-      for (let i = 0; i < obj.length; i++) {
-        editRelnameWithId(obj[i], id);
-      }
-    } else {
-      for (const key in obj) {
-        if (key === "relname") {
-          obj[key] = getTableIdentifier(obj[key], id);
-        } else if (typeof obj[key] === "object") {
-          editRelnameWithId(obj[key], id);
-        }
-      }
-    }
-  }
-}
-
 /**
  * This is a very manual way of parsing out SQL statements so we can append the IDs
  * It's very physical and notsuper reliable (not thoroughly tested)
@@ -149,18 +130,7 @@ export async function executeOperations(operationsArr, pluginId, memory = {}, in
       const { statement, data_key, values = [] } = statementOp;
 
       // New approach, maybe temporary? See comments above about AST parsing approach
-      console.log("Old statement", statement);
       const newStatement = formatStatement(statement, pluginId);
-      console.log("New statement", newStatement);
-      // use AST to parse out table name and append plugin's designated uuid
-      // multi-word table names have to use underscores or wrap the name in quotes
-      // for meta endpoints, we'll use underscores as a standard
-      // const ast = parse(statement);
-
-      // Append the pluginId to the referenced tables
-      // editRelnameWithId(ast, pluginId);
-
-      // const newStatement = deparse(ast);
 
       const transaction = await client.query(newStatement, values);
       memory[data_key] = transaction;
