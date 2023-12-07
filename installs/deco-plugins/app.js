@@ -1,4 +1,4 @@
-import m from "crypto";
+import R from "crypto";
 const i = () => ({
   plugins: {
     table_name: "plugins"
@@ -6,7 +6,7 @@ const i = () => ({
   installRequests: {
     table_name: "install_requests"
   }
-}), p = (t) => ({
+}), m = (t) => ({
   routes: t.map((e) => ({
     path: e.path,
     method: e.method,
@@ -15,8 +15,8 @@ const i = () => ({
     privacy: (e == null ? void 0 : e.privacy) || "PRIVATE"
   }))
 });
-function R(t, e, s) {
-  const n = m.createCipheriv(
+function h(t, e, s) {
+  const n = R.createCipheriv(
     "aes-256-cbc",
     Buffer.from(e, "hex"),
     Buffer.from(s, "hex")
@@ -24,7 +24,7 @@ function R(t, e, s) {
   let a = n.update(t, "utf-8", "hex");
   return a += n.final("hex"), a;
 }
-const f = () => [
+const E = () => [
   () => [
     {
       statement: `CREATE TABLE ${i().plugins.table_name} (
@@ -52,7 +52,7 @@ const f = () => [
       values: []
     }
   ]
-], g = {
+], p = {
   paths: {
     "/": {
       post: {
@@ -73,7 +73,7 @@ const f = () => [
             permissions: u = [],
             core_key: l,
             routes: c
-          } = t.body, _ = p(c), y = m.randomBytes(16).toString("hex");
+          } = t.body, _ = m(c), y = R.randomBytes(16).toString("hex");
           return [
             () => [
               {
@@ -110,6 +110,124 @@ const f = () => [
           status: 200,
           data: t == null ? void 0 : t.allPlugins.rows
         })
+      }
+    },
+    "/install-requests": {
+      post: {
+        summary: "Request a plugin be installed",
+        operationId: "requestPluginInstall",
+        privacy: "PUBLIC",
+        execution: async (t) => {
+          const { req: e, plugins: s } = t, { manifest_uri: n } = e.body, a = e.get("host"), r = await fetch(n);
+          if (!r.ok)
+            return {
+              status: 500,
+              data: null,
+              message: "Manifest JSON could not be fetched"
+            };
+          const o = await r.json();
+          return s["deco-notifications"] && await s["deco-notifications"].operations.createNotification({
+            ...t,
+            req: {
+              ...t.req,
+              body: {
+                plugin_id: s._currentPlugin.id,
+                message: `${a} wants to install ${o.name} from ${n}`
+              }
+            }
+          }), [
+            () => [
+              {
+                statement: `INSERT INTO ${i().installRequests.table_name} (id, manifest_uri, requested_by_uri) VALUES (gen_random_uuid(), $1, $2)`,
+                data_key: "installRequest",
+                values: [n, a]
+              }
+            ]
+          ];
+        }
+      },
+      get: {
+        summary: "Fetch installation requests",
+        operationId: "fetchInstallRequests",
+        execution: () => [
+          () => [
+            {
+              statement: `SELECT * FROM ${i().installRequests.table_name} ORDER BY created_at DESC LIMIT 50;`,
+              data_key: "installRequests",
+              values: []
+            }
+          ]
+        ],
+        handleReturn: ({ memory: t }) => {
+          const { installRequests: e } = t;
+          return {
+            status: 200,
+            data: e == null ? void 0 : e.rows
+          };
+        }
+      }
+    },
+    "/install-requests/{id}": {
+      delete: {
+        summary: "Delete an installation request",
+        operationId: "deleteInstallRequest",
+        execution: async ({ req: t }) => {
+          const { id: e } = t.params;
+          return [
+            () => [
+              {
+                statement: `DELETE FROM ${i().installRequests.table_name} WHERE id = $1`,
+                data_key: "installRequest",
+                values: [e]
+              }
+            ]
+          ];
+        }
+      },
+      get: {
+        summary: "Fetch an installation request",
+        operationId: "fetchInstallRequest",
+        execution: async ({ req: t }) => {
+          const { id: e } = t.params;
+          return [
+            () => [
+              {
+                statement: `SELECT * FROM ${i().installRequests.table_name} WHERE id = $1`,
+                data_key: "installRequest",
+                values: [e]
+              }
+            ]
+          ];
+        }
+      }
+    },
+    "/install-requests/{id}/accept": {
+      post: {
+        summary: "Accept an installation request",
+        operationId: "acceptInstallRequest",
+        execution: async (t) => {
+          var r;
+          const { installPlugin: e, runRoute: s } = t, { installRequest: n } = await s(
+            t,
+            p.paths["/install-requests/{id}"].get
+          ), a = (r = n.rows[0]) == null ? void 0 : r.manifest_uri;
+          try {
+            return await e(a, {
+              rebuildAfterSuccess: !0
+            }), await s(
+              t,
+              p.paths["/install-requests/{id}"].delete
+            ), {
+              status: 200,
+              data: null
+            };
+          } catch {
+            return {
+              status: 500,
+              data: null
+            };
+          }
+        }
       }
     },
     "/{id}": {
@@ -159,7 +277,7 @@ const f = () => [
         summary: "Update a plugin installation record",
         operationId: "updateInstallationRecord",
         execution: ({ req: t }) => {
-          const { id: e } = t.params, { manifest_uri: s, permissions: n, core_key: a, routes: r } = t.body, o = p(r);
+          const { id: e } = t.params, { manifest_uri: s, permissions: n, core_key: a, routes: r } = t.body, o = m(r);
           return [
             () => [
               {
@@ -186,8 +304,8 @@ const f = () => [
         execution: async (t) => {
           const { req: e, res: s, runRoute: n } = t, { id: a } = e.params, { key: r, value: o } = e.body, d = s.locals._server.encryption_string, { data: u } = await n(
             t,
-            g.paths["/{id}"].get
-          ), l = u.secrets, c = R(
+            p.paths["/{id}"].get
+          ), l = u.secrets, c = h(
             o,
             d,
             u.initialization_vector
@@ -211,59 +329,6 @@ const f = () => [
             status: 500,
             data: null
           };
-        }
-      }
-    },
-    "/install-requests": {
-      post: {
-        summary: "Request a plugin be installed",
-        operationId: "requestPluginInstall",
-        privacy: "PUBLIC",
-        execution: async (t) => {
-          const { req: e, plugins: s } = t, { manifest_uri: n } = e.body, a = e.get("host"), r = await fetch(n);
-          if (!r.ok)
-            return {
-              status: 500,
-              data: null,
-              message: "Manifest JSON could not be fetched"
-            };
-          const o = await r.json();
-          return s["deco-notifications"] && await s["deco-notifications"].operations.createNotification({
-            ...t,
-            req: {
-              ...t.req,
-              body: {
-                plugin_id: s._currentPlugin.id,
-                message: `${a} wants to install ${o.name} from ${n}`
-              }
-            }
-          }), [
-            () => [
-              {
-                statement: `INSERT INTO ${i().installRequests.table_name} (id, manifest_uri, requested_by_uri) VALUES (gen_random_uuid(), $1, $2)`,
-                data_key: "installRequest",
-                values: [n, a]
-              }
-            ]
-          ];
-        }
-      }
-    },
-    "/install-requests/{id}": {
-      delete: {
-        summary: "Delete an installation request",
-        operationId: "deleteInstallRequest",
-        execution: async ({ req: t }) => {
-          const { id: e } = t.params;
-          return [
-            () => [
-              {
-                statement: `DELETE FROM ${i().installRequests.table_name} WHERE id = $1`,
-                data_key: "installRequest",
-                values: [e]
-              }
-            ]
-          ];
         }
       }
     }
@@ -362,7 +427,7 @@ const f = () => [
   }
 };
 export {
-  g as endpoints,
-  f as onInstall,
+  p as endpoints,
+  E as onInstall,
   i as tables
 };

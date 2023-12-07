@@ -444,6 +444,7 @@ export async function buildRouteSubset({ server, user }) {
       const exposeUserDetails = installedPlugin.core_key === CORE_KEYS.users;
       const exposeJwtKey = installedPlugin.core_key === CORE_KEYS.users;
       const exposeServerSecret = installedPlugin.core_key === CORE_KEYS.plugins;
+      const exposeInstallFn = installedPlugin.core_key === CORE_KEYS.plugins;
 
       // Append metadata if needed
       const preAuthMiddleware = (exposeUser, exposeJwt, exposeServer) => {
@@ -467,6 +468,7 @@ export async function buildRouteSubset({ server, user }) {
           if (exposeServer) {
             res.locals._server.encryption_string = PLUGIN_SECRET_ENCRYPTION_STRING;
           }
+
           return next();
         };
       };
@@ -510,6 +512,7 @@ export async function buildRouteSubset({ server, user }) {
                     secrets,
                     runStatement: executeOperationInPluginContext,
                     runRoute: executeParallelRoute,
+                    installPlugin: exposeInstallFn ? installPlugin : undefined,
                   };
 
                   // This is where we can execute pre-operations
@@ -603,7 +606,7 @@ export async function buildRouteSubset({ server, user }) {
  * @returns {Promise<void>} A promise that resolves once the plugin is successfully installed.
  */
 export async function installPlugin(uri, opts = {}) {
-  const { isLocal = false, coreKey, id } = opts;
+  const { isLocal = false, coreKey, id, rebuildAfterSuccess = false } = opts;
   try {
     let manifest;
 
@@ -828,6 +831,12 @@ export async function installPlugin(uri, opts = {}) {
       }
     }
 
+    //
+    if (rebuildAfterSuccess) {
+      console.log("Rebuilding routes...");
+      await buildRoutes(server);
+    }
+
     console.log(`Plugin ${uri} installation successful.`);
     return { manifest, plugin: pluginData, save: saveData };
   } catch (error) {
@@ -835,20 +844,6 @@ export async function installPlugin(uri, opts = {}) {
     return Promise.reject(`Failed installing ${uri}: ${error.toString()}`);
   }
 }
-
-// Essential
-// Install request
-// Identification
-// Profiles
-// Notifications
-// Plugins installed / available routes
-// Logs
-// Permissions Requests
-
-// Optional
-// Open Inbox (email)
-// Messages (between friends)
-// Friends
 
 // Plugins with specific rules that have to be installed for the server to function correctly
 export const CORE_KEYS = {

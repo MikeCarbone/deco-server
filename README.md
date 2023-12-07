@@ -26,6 +26,7 @@ This project is in alpha and is not guaranteed to be secure. Do not store any se
 Contributions are welcome. Here is what is still needed:
 
 - [x] Notifications
+- [x] Dependency Resolution
 - [ ] Updating / versioning plugins (checking for and executing)
 - [x] Making Install requests
 - [ ] Accepting Install requests
@@ -37,3 +38,9 @@ Contributions are welcome. Here is what is still needed:
 - [ ] Pre-build secrets script
 - [x] Testing infrastructure
 - [ ] Tests
+
+### Optional Plugins
+
+- [ ] Open Inbox (email)
+- [ ] Messages (between friends)
+- [ ] Friends
