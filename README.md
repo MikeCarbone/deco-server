@@ -1,8 +1,10 @@
 # Deco Server
 
-Deco Server is an easy way to set up a web server that is compatible with the Deco protocol and ecosystem of plugins.
+Deco Server is an easy way to set up a web server that is compatible with the Deco protocol and ecosystem of plugins. The mission of Deco is [to create a network of artificially intelligent, **bidirectional** personal assistants](https://decojs.com).
 
 Why? I believe the future is networked artificial intelligence profiles. These profiles will be exposed via endpoint, be accessible to others, be able to read and write data, and communicate with other profiles on the internet. Currently, [there is no easy way to do this.](https://carbonemike.com/bidirectional-interactivity-limitations-of-ai-tools/). This is the first step in that process, because the server makes it easy for applications to build on top of while enabling the creation of [a local Interaction Record](https://carbonemike.com/navigating-organizational-growth-with-an-interaction-record-and-llms/) to train the artificial intelligence on. This server centralizes user data, enables a new suite of applications, and makes all of the above possible.
+
+![Diagram of a Deco Server, including a REST API, installable apps, LLM via API, Relational DB, Vector DB Embeddings, and a local LLM.](https://storage.googleapis.com/carbonemike-images/1702492323540deco-server-2.png)
 
 ## Installation
 
@@ -64,13 +66,13 @@ Currently, the server uses password-based authentication. Each user on a server 
 
 We employee a few methods to avoid plugin collisions.
 
-- **SQL Parsing.**
+- **SQL Parsing**
   - Deco appends the plugin ID to tables a plugin creates. Every plugin gets a UUID assigned, so this will make it harder for a bad plugin to write `DROP * FROM xyz`, or guess the SQL table names. This also avoids table name collisions, so two apps can make a table called "users" for example.
-- **Naming.**
+- **Naming**
   - Plugin names should be unique. We encourage using a facilitator, like [Deco Platform](https://decojs.com) to safely install 3rd party plugins.
-- **Permissions.**
+- **Permissions**
   - Plugins can't touch other plugins, unless the user grants permission. If a plugin wants to access certain operations or tables, it will have to specify that in its manifest's dependencies.
-- **Endpoint separation**
+- **Endpoint Separation**
   - Endpoints are separated via `/plugins/plugin-name`, which avoids plugin endpoints from colliding with each other.
 
 ### Security
