@@ -945,6 +945,7 @@ export async function buildRoutes(mainServer) {
       });
 
       // This doesnt factor in components
+      // Components aren't included in the saved route json, so have to fix that first
       serverInstance.get("/_meta/open-api", (req, res) => {
         const paths = {};
 

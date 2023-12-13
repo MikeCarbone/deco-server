@@ -1,7 +1,7 @@
 {
-  "name": "server",
+  "name": "deco-server",
   "version": "0.0.1",
-  "description": "",
+  "description": "A web server that enables installable plugins, structured learning and bidirectional AI interactions.",
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
@@ -11,8 +11,8 @@
     "node": ">=18.0.0"
   },
   "type": "module",
-  "author": "",
-  "license": "ISC",
+  "author": "Mike Carbone <mike@carbonology.in> (https://carbonemike.com)",
+  "license": "MIT",
   "dependencies": {
     "cookie": "^0.6.0",
     "dotenv": "^16.3.1",
@@ -32,5 +32,12 @@
       "installs/*",
       "apps.json"
     ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mikcarbone/deco-server.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mikecarbone/deco-server/issues"
   }
 }
