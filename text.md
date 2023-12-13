@@ -6,6 +6,10 @@ QUESTIONS:
 - Like, custom extensions
 - We can have apps create profiles, we can have users create profiles, we can append it to plugin permission...
 - Or we can ignore it for now and just do webid
+- Perhaps, site makes request for user details, one time deal, identifies scope, stateless... should only need it on account creation / updates
+
+How does a website handle sessions?
+User signs in with webid, app is granted install, profile, and plugin access permissions. App stores webid. & profile information. Can prompt for any other onboarding info
 
 - FLOW
 - Routes:

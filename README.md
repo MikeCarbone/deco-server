@@ -110,8 +110,10 @@ Contributions are welcome. Here is what is still needed:
 - [ ] API Access
 - [ ] Pre-build secrets script
 - [ ] Webhooks (subscribing to events)
+- [ ] Vector DB Embeddings
+- [ ] Local LLM Flow
 
-### Core Plugin Roadmap
+### Core Plugins
 
 - [ ] Open Inbox (email)
 - [ ] Messages (between friends)

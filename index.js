@@ -277,9 +277,12 @@ export async function authenticationMiddleware(req, res, next, plugin, permissio
   }
 
   // If private, continue authentication
+  // This is the easiest way to get just the path /a/b/c without query info ?q=xyz
+  const url = new URL(`${req.protocol}://${req.get("host")}${req.originalUrl}`);
+  const resource = url.pathname;
 
   // Identify request source from req, including subdomains, not including protocol
-  const requestSource = req.get("host").split(".")[0];
+  const requestSource = req.get("host").toUpperCase();
 
   // Check to see if permission record exists for this
   const { endpoints } = await import("./installs/deco-permissions/app.js");
@@ -289,7 +292,7 @@ export async function authenticationMiddleware(req, res, next, plugin, permissio
     req: {
       query: {
         domain: requestSource,
-        resource: identifier,
+        resource: resource.toUpperCase(),
         method: req.method,
       },
     },
@@ -850,7 +853,6 @@ export const CORE_KEYS = {
   users: "users",
   plugins: "plugins",
   logs: "logs",
-  permissionRequests: "permission-requests",
   permissions: "permissions",
   notifications: "notifications",
 };
@@ -869,11 +871,6 @@ export const CORE_PLUGINS = {
   [CORE_KEYS.permissions]: {
     manifest: {
       path: "../deco-core/packages/deco-permissions/dist/manifest.json",
-    },
-  },
-  [CORE_KEYS.permissionRequests]: {
-    manifest: {
-      path: "../deco-core/packages/deco-permission-requests/dist/manifest.json",
     },
   },
   [CORE_KEYS.plugins]: {
@@ -1020,7 +1017,6 @@ export async function deco() {
   await installPlugin(CORE_PLUGINS[CORE_KEYS.plugins].manifest.path, { isLocal: true, coreKey: CORE_KEYS.plugins, id: CORE_PLUGINS[CORE_KEYS.plugins].id });
   await installPlugin(CORE_PLUGINS[CORE_KEYS.users].manifest.path, { isLocal: true, coreKey: CORE_KEYS.users });
   await installPlugin(CORE_PLUGINS[CORE_KEYS.permissions].manifest.path, { isLocal: true, coreKey: CORE_KEYS.permissions });
-  await installPlugin(CORE_PLUGINS[CORE_KEYS.permissionRequests].manifest.path, { isLocal: true, coreKey: CORE_KEYS.permissionRequests });
   await installPlugin(CORE_PLUGINS[CORE_KEYS.notifications].manifest.path, { isLocal: true, coreKey: CORE_KEYS.notifications });
   await createOwnerIfNotThereAlready();
   await buildRoutes(server);
