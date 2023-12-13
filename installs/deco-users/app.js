@@ -284,9 +284,9 @@ var jr = Ye, qi = jr.ARRAY_BUFFER_SUPPORT, Vi = jr.SYMBOL_SUPPORT, Kr = function
     Float64Array: 8
   };
   o.getMinimalRepresentation = function(w, M) {
-    var b = null, _ = 0, I, k, $, F, G;
+    var b = null, _ = 0, R, k, $, F, G;
     for (F = 0, G = w.length; F < G; F++)
-      $ = M ? M(w[F]) : w[F], k = o.getNumberType($), I = g[k.name], I > _ && (_ = I, b = k);
+      $ = M ? M(w[F]) : w[F], k = o.getNumberType($), R = g[k.name], R > _ && (_ = R, b = k);
     return b;
   }, o.isTypedArray = function(w) {
     return typeof ArrayBuffer < "u" && ArrayBuffer.isView(w);
@@ -294,10 +294,10 @@ var jr = Ye, qi = jr.ARRAY_BUFFER_SUPPORT, Vi = jr.SYMBOL_SUPPORT, Kr = function
     var w = 0, M, b, _;
     for (M = 0, _ = arguments.length; M < _; M++)
       w += arguments[M].length;
-    var I = new arguments[0].constructor(w);
+    var R = new arguments[0].constructor(w);
     for (M = 0, b = 0; M < _; M++)
-      I.set(arguments[M], b), b += arguments[M].length;
-    return I;
+      R.set(arguments[M], b), b += arguments[M].length;
+    return R;
   }, o.indices = function(w) {
     for (var M = o.getPointerArray(w), b = new M(w), _ = 0; _ < w; _++)
       b[_] = _;
@@ -629,7 +629,7 @@ Qe.exports;
       5,
       5,
       5
-    ], I = [
+    ], R = [
       0,
       0,
       33554432,
@@ -682,7 +682,7 @@ Qe.exports;
         return this.negative !== 0 && (h = "-" + h), h;
       }
       if (e === (e | 0) && e >= 2 && e <= 36) {
-        var i = _[e], c = I[e];
+        var i = _[e], c = R[e];
         h = "";
         var S = this.clone();
         for (S.negative = 0; !S.isZero(); ) {
@@ -895,10 +895,10 @@ Qe.exports;
       y = (c + (i >>> 13) | 0) + (Te >>> 26) | 0, Te &= 67108863, l = Math.imul(ot, at), i = Math.imul(ot, ft), i = i + Math.imul(st, at) | 0, c = Math.imul(st, ft), l = l + Math.imul(it, ht) | 0, i = i + Math.imul(it, ut) | 0, i = i + Math.imul(nt, ht) | 0, c = c + Math.imul(nt, ut) | 0, l = l + Math.imul(et, lt) | 0, i = i + Math.imul(et, ct) | 0, i = i + Math.imul(rt, lt) | 0, c = c + Math.imul(rt, ct) | 0, l = l + Math.imul(Q, dt) | 0, i = i + Math.imul(Q, pt) | 0, i = i + Math.imul(tt, dt) | 0, c = c + Math.imul(tt, pt) | 0, l = l + Math.imul(W, mt) | 0, i = i + Math.imul(W, vt) | 0, i = i + Math.imul(X, mt) | 0, c = c + Math.imul(X, vt) | 0, l = l + Math.imul(Y, yt) | 0, i = i + Math.imul(Y, gt) | 0, i = i + Math.imul(Z, yt) | 0, c = c + Math.imul(Z, gt) | 0, l = l + Math.imul(H, wt) | 0, i = i + Math.imul(H, Mt) | 0, i = i + Math.imul(z, wt) | 0, c = c + Math.imul(z, Mt) | 0, l = l + Math.imul(j, bt) | 0, i = i + Math.imul(j, _t) | 0, i = i + Math.imul(V, bt) | 0, c = c + Math.imul(V, _t) | 0, l = l + Math.imul(N, St) | 0, i = i + Math.imul(N, xt) | 0, i = i + Math.imul(L, St) | 0, c = c + Math.imul(L, xt) | 0, l = l + Math.imul(x, Et) | 0, i = i + Math.imul(x, At) | 0, i = i + Math.imul(E, Et) | 0, c = c + Math.imul(E, At) | 0;
       var Be = (y + l | 0) + ((i & 8191) << 13) | 0;
       y = (c + (i >>> 13) | 0) + (Be >>> 26) | 0, Be &= 67108863, l = Math.imul(ot, ht), i = Math.imul(ot, ut), i = i + Math.imul(st, ht) | 0, c = Math.imul(st, ut), l = l + Math.imul(it, lt) | 0, i = i + Math.imul(it, ct) | 0, i = i + Math.imul(nt, lt) | 0, c = c + Math.imul(nt, ct) | 0, l = l + Math.imul(et, dt) | 0, i = i + Math.imul(et, pt) | 0, i = i + Math.imul(rt, dt) | 0, c = c + Math.imul(rt, pt) | 0, l = l + Math.imul(Q, mt) | 0, i = i + Math.imul(Q, vt) | 0, i = i + Math.imul(tt, mt) | 0, c = c + Math.imul(tt, vt) | 0, l = l + Math.imul(W, yt) | 0, i = i + Math.imul(W, gt) | 0, i = i + Math.imul(X, yt) | 0, c = c + Math.imul(X, gt) | 0, l = l + Math.imul(Y, wt) | 0, i = i + Math.imul(Y, Mt) | 0, i = i + Math.imul(Z, wt) | 0, c = c + Math.imul(Z, Mt) | 0, l = l + Math.imul(H, bt) | 0, i = i + Math.imul(H, _t) | 0, i = i + Math.imul(z, bt) | 0, c = c + Math.imul(z, _t) | 0, l = l + Math.imul(j, St) | 0, i = i + Math.imul(j, xt) | 0, i = i + Math.imul(V, St) | 0, c = c + Math.imul(V, xt) | 0, l = l + Math.imul(N, Et) | 0, i = i + Math.imul(N, At) | 0, i = i + Math.imul(L, Et) | 0, c = c + Math.imul(L, At) | 0;
-      var Ie = (y + l | 0) + ((i & 8191) << 13) | 0;
-      y = (c + (i >>> 13) | 0) + (Ie >>> 26) | 0, Ie &= 67108863, l = Math.imul(ot, lt), i = Math.imul(ot, ct), i = i + Math.imul(st, lt) | 0, c = Math.imul(st, ct), l = l + Math.imul(it, dt) | 0, i = i + Math.imul(it, pt) | 0, i = i + Math.imul(nt, dt) | 0, c = c + Math.imul(nt, pt) | 0, l = l + Math.imul(et, mt) | 0, i = i + Math.imul(et, vt) | 0, i = i + Math.imul(rt, mt) | 0, c = c + Math.imul(rt, vt) | 0, l = l + Math.imul(Q, yt) | 0, i = i + Math.imul(Q, gt) | 0, i = i + Math.imul(tt, yt) | 0, c = c + Math.imul(tt, gt) | 0, l = l + Math.imul(W, wt) | 0, i = i + Math.imul(W, Mt) | 0, i = i + Math.imul(X, wt) | 0, c = c + Math.imul(X, Mt) | 0, l = l + Math.imul(Y, bt) | 0, i = i + Math.imul(Y, _t) | 0, i = i + Math.imul(Z, bt) | 0, c = c + Math.imul(Z, _t) | 0, l = l + Math.imul(H, St) | 0, i = i + Math.imul(H, xt) | 0, i = i + Math.imul(z, St) | 0, c = c + Math.imul(z, xt) | 0, l = l + Math.imul(j, Et) | 0, i = i + Math.imul(j, At) | 0, i = i + Math.imul(V, Et) | 0, c = c + Math.imul(V, At) | 0;
       var Re = (y + l | 0) + ((i & 8191) << 13) | 0;
-      y = (c + (i >>> 13) | 0) + (Re >>> 26) | 0, Re &= 67108863, l = Math.imul(ot, dt), i = Math.imul(ot, pt), i = i + Math.imul(st, dt) | 0, c = Math.imul(st, pt), l = l + Math.imul(it, mt) | 0, i = i + Math.imul(it, vt) | 0, i = i + Math.imul(nt, mt) | 0, c = c + Math.imul(nt, vt) | 0, l = l + Math.imul(et, yt) | 0, i = i + Math.imul(et, gt) | 0, i = i + Math.imul(rt, yt) | 0, c = c + Math.imul(rt, gt) | 0, l = l + Math.imul(Q, wt) | 0, i = i + Math.imul(Q, Mt) | 0, i = i + Math.imul(tt, wt) | 0, c = c + Math.imul(tt, Mt) | 0, l = l + Math.imul(W, bt) | 0, i = i + Math.imul(W, _t) | 0, i = i + Math.imul(X, bt) | 0, c = c + Math.imul(X, _t) | 0, l = l + Math.imul(Y, St) | 0, i = i + Math.imul(Y, xt) | 0, i = i + Math.imul(Z, St) | 0, c = c + Math.imul(Z, xt) | 0, l = l + Math.imul(H, Et) | 0, i = i + Math.imul(H, At) | 0, i = i + Math.imul(z, Et) | 0, c = c + Math.imul(z, At) | 0;
+      y = (c + (i >>> 13) | 0) + (Re >>> 26) | 0, Re &= 67108863, l = Math.imul(ot, lt), i = Math.imul(ot, ct), i = i + Math.imul(st, lt) | 0, c = Math.imul(st, ct), l = l + Math.imul(it, dt) | 0, i = i + Math.imul(it, pt) | 0, i = i + Math.imul(nt, dt) | 0, c = c + Math.imul(nt, pt) | 0, l = l + Math.imul(et, mt) | 0, i = i + Math.imul(et, vt) | 0, i = i + Math.imul(rt, mt) | 0, c = c + Math.imul(rt, vt) | 0, l = l + Math.imul(Q, yt) | 0, i = i + Math.imul(Q, gt) | 0, i = i + Math.imul(tt, yt) | 0, c = c + Math.imul(tt, gt) | 0, l = l + Math.imul(W, wt) | 0, i = i + Math.imul(W, Mt) | 0, i = i + Math.imul(X, wt) | 0, c = c + Math.imul(X, Mt) | 0, l = l + Math.imul(Y, bt) | 0, i = i + Math.imul(Y, _t) | 0, i = i + Math.imul(Z, bt) | 0, c = c + Math.imul(Z, _t) | 0, l = l + Math.imul(H, St) | 0, i = i + Math.imul(H, xt) | 0, i = i + Math.imul(z, St) | 0, c = c + Math.imul(z, xt) | 0, l = l + Math.imul(j, Et) | 0, i = i + Math.imul(j, At) | 0, i = i + Math.imul(V, Et) | 0, c = c + Math.imul(V, At) | 0;
+      var Ie = (y + l | 0) + ((i & 8191) << 13) | 0;
+      y = (c + (i >>> 13) | 0) + (Ie >>> 26) | 0, Ie &= 67108863, l = Math.imul(ot, dt), i = Math.imul(ot, pt), i = i + Math.imul(st, dt) | 0, c = Math.imul(st, pt), l = l + Math.imul(it, mt) | 0, i = i + Math.imul(it, vt) | 0, i = i + Math.imul(nt, mt) | 0, c = c + Math.imul(nt, vt) | 0, l = l + Math.imul(et, yt) | 0, i = i + Math.imul(et, gt) | 0, i = i + Math.imul(rt, yt) | 0, c = c + Math.imul(rt, gt) | 0, l = l + Math.imul(Q, wt) | 0, i = i + Math.imul(Q, Mt) | 0, i = i + Math.imul(tt, wt) | 0, c = c + Math.imul(tt, Mt) | 0, l = l + Math.imul(W, bt) | 0, i = i + Math.imul(W, _t) | 0, i = i + Math.imul(X, bt) | 0, c = c + Math.imul(X, _t) | 0, l = l + Math.imul(Y, St) | 0, i = i + Math.imul(Y, xt) | 0, i = i + Math.imul(Z, St) | 0, c = c + Math.imul(Z, xt) | 0, l = l + Math.imul(H, Et) | 0, i = i + Math.imul(H, At) | 0, i = i + Math.imul(z, Et) | 0, c = c + Math.imul(z, At) | 0;
       var ke = (y + l | 0) + ((i & 8191) << 13) | 0;
       y = (c + (i >>> 13) | 0) + (ke >>> 26) | 0, ke &= 67108863, l = Math.imul(ot, mt), i = Math.imul(ot, vt), i = i + Math.imul(st, mt) | 0, c = Math.imul(st, vt), l = l + Math.imul(it, yt) | 0, i = i + Math.imul(it, gt) | 0, i = i + Math.imul(nt, yt) | 0, c = c + Math.imul(nt, gt) | 0, l = l + Math.imul(et, wt) | 0, i = i + Math.imul(et, Mt) | 0, i = i + Math.imul(rt, wt) | 0, c = c + Math.imul(rt, Mt) | 0, l = l + Math.imul(Q, bt) | 0, i = i + Math.imul(Q, _t) | 0, i = i + Math.imul(tt, bt) | 0, c = c + Math.imul(tt, _t) | 0, l = l + Math.imul(W, St) | 0, i = i + Math.imul(W, xt) | 0, i = i + Math.imul(X, St) | 0, c = c + Math.imul(X, xt) | 0, l = l + Math.imul(Y, Et) | 0, i = i + Math.imul(Y, At) | 0, i = i + Math.imul(Z, Et) | 0, c = c + Math.imul(Z, At) | 0;
       var Pe = (y + l | 0) + ((i & 8191) << 13) | 0;
@@ -912,7 +912,7 @@ Qe.exports;
       var De = (y + l | 0) + ((i & 8191) << 13) | 0;
       y = (c + (i >>> 13) | 0) + (De >>> 26) | 0, De &= 67108863, l = Math.imul(ot, Et), i = Math.imul(ot, At), i = i + Math.imul(st, Et) | 0, c = Math.imul(st, At);
       var Ue = (y + l | 0) + ((i & 8191) << 13) | 0;
-      return y = (c + (i >>> 13) | 0) + (Ue >>> 26) | 0, Ue &= 67108863, v[0] = we, v[1] = Me, v[2] = be, v[3] = _e, v[4] = Se, v[5] = xe, v[6] = Ee, v[7] = Ae, v[8] = Te, v[9] = Be, v[10] = Ie, v[11] = Re, v[12] = ke, v[13] = Pe, v[14] = Ce, v[15] = Oe, v[16] = Ne, v[17] = De, v[18] = Ue, y !== 0 && (v[19] = y, h.length++), h;
+      return y = (c + (i >>> 13) | 0) + (Ue >>> 26) | 0, Ue &= 67108863, v[0] = we, v[1] = Me, v[2] = be, v[3] = _e, v[4] = Se, v[5] = xe, v[6] = Ee, v[7] = Ae, v[8] = Te, v[9] = Be, v[10] = Re, v[11] = Ie, v[12] = ke, v[13] = Pe, v[14] = Ce, v[15] = Oe, v[16] = Ne, v[17] = De, v[18] = Ue, y !== 0 && (v[19] = y, h.length++), h;
     };
     Math.imul || (F = $);
     function G(p, e, s) {
@@ -1395,7 +1395,7 @@ Qe.exports;
     }, a.prototype.redPow = function(e) {
       return n(this.red && !e.red, "redPow(normalNum)"), this.red._verify1(this), this.red.pow(this, e);
     };
-    var It = {
+    var Rt = {
       k256: null,
       p224: null,
       p192: null,
@@ -1419,14 +1419,14 @@ Qe.exports;
     }, P.prototype.imulK = function(e) {
       return e.imul(this.k);
     };
-    function R() {
+    function I() {
       P.call(
         this,
         "k256",
         "ffffffff ffffffff ffffffff ffffffff ffffffff ffffffff fffffffe fffffc2f"
       );
     }
-    f(R, P), R.prototype.split = function(e, s) {
+    f(I, P), I.prototype.split = function(e, s) {
       for (var h = 4194303, u = Math.min(e.length, 9), d = 0; d < u; d++)
         s.words[d] = e.words[d];
       if (s.length = u, e.length <= 9) {
@@ -1439,7 +1439,7 @@ Qe.exports;
         e.words[d - 10] = (y & h) << 4 | v >>> 22, v = y;
       }
       v >>>= 22, e.words[d - 10] = v, v === 0 && e.length > 10 ? e.length -= 10 : e.length -= 9;
-    }, R.prototype.imulK = function(e) {
+    }, I.prototype.imulK = function(e) {
       e.words[e.length] = 0, e.words[e.length + 1] = 0, e.length += 2;
       for (var s = 0, h = 0; h < e.length; h++) {
         var u = e.words[h] | 0;
@@ -1463,34 +1463,34 @@ Qe.exports;
       );
     }
     f(q, P);
-    function Rt() {
+    function It() {
       P.call(
         this,
         "25519",
         "7fffffffffffffff ffffffffffffffff ffffffffffffffff ffffffffffffffed"
       );
     }
-    f(Rt, P), Rt.prototype.imulK = function(e) {
+    f(It, P), It.prototype.imulK = function(e) {
       for (var s = 0, h = 0; h < e.length; h++) {
         var u = (e.words[h] | 0) * 19 + s, d = u & 67108863;
         u >>>= 26, e.words[h] = d, s = u;
       }
       return s !== 0 && (e.words[e.length++] = s), e;
     }, a._prime = function(e) {
-      if (It[e])
-        return It[e];
+      if (Rt[e])
+        return Rt[e];
       var s;
       if (e === "k256")
-        s = new R();
+        s = new I();
       else if (e === "p224")
         s = new K();
       else if (e === "p192")
         s = new q();
       else if (e === "p25519")
-        s = new Rt();
+        s = new It();
       else
         throw new Error("Unknown prime " + e);
-      return It[e] = s, s;
+      return Rt[e] = s, s;
     };
     function O(p) {
       if (typeof p == "string") {
@@ -2377,7 +2377,7 @@ nr.prototype.encode = function(t, r) {
   t.der = Xr, t.pem = un;
 })(tr);
 var or = {};
-const ln = Vt, cn = Jr, Br = qt.DecoderBuffer, Qr = rr, Ir = ge;
+const ln = Vt, cn = Jr, Br = qt.DecoderBuffer, Qr = rr, Rr = ge;
 function ti(o) {
   this.enc = "der", this.name = o.name, this.entity = o, this.tree = new Pt(), this.tree._init(o.body);
 }
@@ -2518,7 +2518,7 @@ function sr(o, t) {
   let r = o.readUInt8(t);
   if (o.isError(r))
     return r;
-  const n = Ir.tagClass[r >> 6], f = (r & 32) === 0;
+  const n = Rr.tagClass[r >> 6], f = (r & 32) === 0;
   if ((r & 31) === 31) {
     let m = r;
     for (r = 0; (m & 128) === 128; ) {
@@ -2528,7 +2528,7 @@ function sr(o, t) {
     }
   } else
     r &= 31;
-  const a = Ir.tag[r];
+  const a = Rr.tag[r];
   return {
     cls: n,
     primitive: f,
@@ -2604,8 +2604,8 @@ fr.prototype.decode = function(t, r) {
     function M(b) {
       this._initNamed(b, w);
     }
-    return n(M, g), M.prototype._initNamed = function(_, I) {
-      g.call(this, _, I);
+    return n(M, g), M.prototype._initNamed = function(_, R) {
+      g.call(this, _, R);
     }, new M(this);
   }, a.prototype._getDecoder = function(g) {
     return g = g || "der", this.decoders.hasOwnProperty(g) || (this.decoders[g] = this._createNamed(r[g])), this.decoders[g];
@@ -2722,15 +2722,15 @@ function xn(o, t) {
   var b = a;
   if (a += M, a !== f)
     throw new Error('Expected to consume entire buffer, but "' + (f - a) + '" bytes remain');
-  var _ = r - g, I = r - M, k = he.allocUnsafe(_ + g + I + M);
+  var _ = r - g, R = r - M, k = he.allocUnsafe(_ + g + R + M);
   for (a = 0; a < _; ++a)
     k[a] = 0;
   o.copy(k, a, w + Math.max(-_, 0), w + g), a = r;
-  for (var $ = a; a < $ + I; ++a)
+  for (var $ = a; a < $ + R; ++a)
     k[a] = 0;
-  return o.copy(k, a, b + Math.max(-I, 0), b + M), k = k.toString("base64"), k = Sn(k), k;
+  return o.copy(k, a, b + Math.max(-R, 0), b + M), k = k.toString("base64"), k = Sn(k), k;
 }
-function Rr(o, t, r) {
+function Ir(o, t, r) {
   for (var n = 0; t + n < r && o[t + n] === 0; )
     ++n;
   var f = o[t + n] >= ue;
@@ -2741,7 +2741,7 @@ function En(o, t) {
   var r = oi(t), n = o.length;
   if (n !== r * 2)
     throw new TypeError('"' + t + '" signatures must be "' + r * 2 + '" bytes, saw "' + n + '"');
-  var f = Rr(o, 0, r), a = Rr(o, r, o.length), m = r - f, g = r - a, w = 1 + 1 + m + 1 + 1 + g, M = w < ue, b = he.allocUnsafe((M ? 2 : 3) + w), _ = 0;
+  var f = Ir(o, 0, r), a = Ir(o, r, o.length), m = r - f, g = r - a, w = 1 + 1 + m + 1 + 1 + g, M = w < ue, b = he.allocUnsafe((M ? 2 : 3) + w), _ = 0;
   return b[_++] = ai, M ? b[_++] = w : (b[_++] = ue | 1, b[_++] = w & 255), b[_++] = le, b[_++] = m, f < 0 ? (b[_++] = 0, _ += o.copy(b, _, 0, r)) : _ += o.copy(b, _, f, r), b[_++] = le, b[_++] = g, a < 0 ? (b[_++] = 0, o.copy(b, _, r)) : o.copy(b, _, r + a), b;
 }
 var An = {
@@ -2753,12 +2753,12 @@ const hr = Gr, {
   createVerify: Tn,
   createSign: ui,
   timingSafeEqual: Bn,
-  createPublicKey: In,
+  createPublicKey: Rn,
   constants: {
     RSA_PKCS1_PSS_PADDING: li,
     RSA_PSS_SALTLEN_DIGEST: ci,
     RSA_PKCS1_PADDING: di,
-    RSA_PSS_SALTLEN_MAX_SIGN: Rn,
+    RSA_PSS_SALTLEN_MAX_SIGN: In,
     RSA_PSS_SALTLEN_AUTO: kn
   }
 } = re;
@@ -2841,7 +2841,7 @@ function Kn(o) {
     throw new D(D.codes.invalidKey, "Private keys are not supported for verifying.");
   if (!o.match(gi) && !o.includes(Je))
     return wi;
-  o.includes(Je) && (o = In(o).export({ type: "spki", format: "pem" }));
+  o.includes(Je) && (o = Rn(o).export({ type: "spki", format: "pem" }));
   const t = $n.decode(o, "pem", { label: "PUBLIC KEY" }), r = t.algorithm.algorithm.join(".");
   let n;
   switch (r) {
@@ -2917,7 +2917,7 @@ function Vn(o, t, r) {
         m = {
           key: t,
           padding: di,
-          saltLength: Rn
+          saltLength: In
         }, n === "PS" && (m.padding = li, m.saltLength = ci), a = ui(f).update(r).sign(m).toString("base64");
         break;
       case "Ed":
@@ -3090,15 +3090,15 @@ function Cr(o, { input: t, header: r, payload: n, signature: f }, { validators: 
     throw new B(B.codes.missingKey, "The key option is missing.");
   if (uo(t, r, f, o, m), g && (typeof r.typ != "string" || g !== r.typ.toLowerCase().replace(/^application\//, "")))
     throw new B(B.codes.invalidType, "Invalid typ.");
-  const I = w || Date.now();
+  const R = w || Date.now();
   for (const k of a) {
-    const { type: $, claim: F, allowed: G, array: Bt, modifier: C, greater: It, errorCode: P, errorVerb: R } = k, K = n[F], q = Array.isArray(K), Rt = q ? K : [K];
+    const { type: $, claim: F, allowed: G, array: Bt, modifier: C, greater: Rt, errorCode: P, errorVerb: I } = k, K = n[F], q = Array.isArray(K), It = q ? K : [K];
     if (!(F in n)) {
       if (b && b.includes(F))
         throw new B(B.codes.missingRequiredClaim, `The ${F} claim is required.`);
       continue;
     }
-    lo(Rt, F, Bt, $ === "date" ? "number" : "string"), $ === "date" ? po(K, C, I, It, P, R) : co(Rt, F, G, q);
+    lo(It, F, Bt, $ === "date" ? "number" : "string"), $ === "date" ? po(K, C, R, Rt, P, I) : co(It, F, G, q);
   }
 }
 function mo({
@@ -3114,12 +3114,12 @@ function mo({
   maxAge: M,
   isAsync: b,
   validators: _,
-  decode: I,
+  decode: R,
   cache: k,
   requiredClaims: $,
   errorCacheTTL: F
 }, G, Bt) {
-  const [C, It] = b ? oo(Bt) : [], P = {
+  const [C, Rt] = b ? oo(Bt) : [], P = {
     cache: k,
     token: G,
     cacheTTL: n,
@@ -3137,26 +3137,26 @@ function mo({
       /* istanbul ignore next */
       typeof J < "u" && (p === 0 || s < p && J.code === "FAST_JWT_INACTIVE" || s >= p && J.code !== "FAST_JWT_INACTIVE") && (e === 0 || s <= e)
     )
-      return ho(J, C, It);
+      return ho(J, C, Rt);
   }
-  let R;
+  let I;
   try {
-    R = I(G);
+    I = R(G);
   } catch (J) {
     if (C)
-      return C(J), It;
+      return C(J), Rt;
     throw J;
   }
-  const { header: K, payload: q, signature: Rt } = R;
+  const { header: K, payload: q, signature: It } = I;
   P.payload = q;
   const O = { validators: _, allowedAlgorithms: t, checkTyp: f, clockTimestamp: a, clockTolerance: m, requiredClaims: $ };
   if (!C)
     try {
-      return Cr(o, R, O), Gt(P, r ? { header: K, payload: q, signature: Rt } : q);
+      return Cr(o, I, O), Gt(P, r ? { header: K, payload: q, signature: It } : q);
     } catch (J) {
       throw Gt(P, J);
     }
-  return no(o, { header: K, payload: q, signature: Rt }, (J, p) => {
+  return no(o, { header: K, payload: q, signature: It }, (J, p) => {
     if (J)
       return C(
         Gt(P, B.wrap(J, B.codes.keyFetchingError, "Cannot fetch key."))
@@ -3175,12 +3175,12 @@ function mo({
       );
     try {
       const e = Ai(p);
-      O.allowedAlgorithms.length ? Ti(t, e) : O.allowedAlgorithms = e, p = Bi(p, e[0] === Ei[0]), Cr(p, R, O);
+      O.allowedAlgorithms.length ? Ti(t, e) : O.allowedAlgorithms = e, p = Bi(p, e[0] === Ei[0]), Cr(p, I, O);
     } catch (e) {
       return C(Gt(P, e));
     }
-    C(null, Gt(P, r ? { header: K, payload: q, signature: Rt } : q));
-  }), It;
+    C(null, Gt(P, r ? { header: K, payload: q, signature: It } : q));
+  }), Rt;
 }
 var vo = function(t) {
   let {
@@ -3194,14 +3194,14 @@ var vo = function(t) {
     clockTimestamp: M,
     clockTolerance: b,
     ignoreExpiration: _,
-    ignoreNotBefore: I,
+    ignoreNotBefore: R,
     maxAge: k,
     allowedJti: $,
     allowedAud: F,
     allowedIss: G,
     allowedSub: Bt,
     allowedNonce: C,
-    requiredClaims: It
+    requiredClaims: Rt
   } = { cacheTTL: 6e5, clockTolerance: 0, errorCacheTTL: -1, ...t };
   Array.isArray(n) || (n = []);
   const P = typeof r;
@@ -3225,23 +3225,23 @@ var vo = function(t) {
       B.codes.invalidOption,
       "The errorCacheTTL option must be a number greater than -1 or a function."
     );
-  if (It && !Array.isArray(It))
+  if (Rt && !Array.isArray(Rt))
     throw new B(B.codes.invalidOption, "The requiredClaims option must be an array.");
-  const R = [];
-  I || R.push({
+  const I = [];
+  R || I.push({
     type: "date",
     claim: "nbf",
     errorCode: "inactive",
     errorVerb: "will be active",
     greater: !0,
     modifier: -b
-  }), _ || R.push({
+  }), _ || I.push({
     type: "date",
     claim: "exp",
     errorCode: "expired",
     errorVerb: "has expired",
     modifier: +b
-  }), typeof k == "number" && R.push({ type: "date", claim: "iat", errorCode: "expired", errorVerb: "has expired", modifier: k }), $ && R.push({ type: "string", claim: "jti", allowed: Wt($) }), F && R.push({ type: "string", claim: "aud", allowed: Wt(F), array: !0 }), G && R.push({ type: "string", claim: "iss", allowed: Wt(G) }), Bt && R.push({ type: "string", claim: "sub", allowed: Wt(Bt) }), C && R.push({ type: "string", claim: "nonce", allowed: Wt(C) });
+  }), typeof k == "number" && I.push({ type: "date", claim: "iat", errorCode: "expired", errorVerb: "has expired", modifier: k }), $ && I.push({ type: "string", claim: "jti", allowed: Wt($) }), F && I.push({ type: "string", claim: "aud", allowed: Wt(F), array: !0 }), G && I.push({ type: "string", claim: "iss", allowed: Wt(G) }), Bt && I.push({ type: "string", claim: "sub", allowed: Wt(Bt) }), C && I.push({ type: "string", claim: "nonce", allowed: Wt(C) });
   let K = null;
   w && (K = w.toLowerCase().replace(/^application\//, ""));
   const q = {
@@ -3254,15 +3254,15 @@ var vo = function(t) {
     clockTimestamp: M,
     clockTolerance: b,
     ignoreExpiration: _,
-    ignoreNotBefore: I,
+    ignoreNotBefore: R,
     maxAge: k,
     isAsync: P === "function",
-    validators: R,
+    validators: I,
     decode: io({ complete: !0 }),
     cache: fo(a),
-    requiredClaims: It
-  }, Rt = mo.bind(null, q);
-  return Rt.cache = q.cache, Rt;
+    requiredClaims: Rt
+  }, It = mo.bind(null, q);
+  return It.cache = q.cache, It;
 }, ur = {}, yo = /^(-?(?:\d+)?\.?\d+) *(m(?:illiseconds?|s(?:ecs?)?))?(s(?:ec(?:onds?|s)?)?)?(m(?:in(?:utes?|s)?)?)?(h(?:ours?|rs?)?)?(d(?:ays?)?)?(w(?:eeks?|ks?)?)?(y(?:ears?|rs?)?)?$/, de = 1e3, pe = de * 60, me = pe * 60, ee = me * 24, ze = ee * 365.25;
 function go(o) {
   var t, r = o.toLowerCase().match(yo);
@@ -3287,9 +3287,9 @@ const {
   esAlgorithms: _o,
   rsaAlgorithms: So,
   edAlgorithms: xo,
-  detectPrivateKeyAlgorithm: Ii,
+  detectPrivateKeyAlgorithm: Ri,
   createSignature: Or
-} = Si, { TokenError: T } = ie, { getAsyncKey: Eo, ensurePromiseCallback: Ao } = xi, { createPrivateKey: To, createSecretKey: Bo } = re, { parse: Nr } = ur, Ri = /* @__PURE__ */ new Set([...bo, ..._o, ...So, ...xo, "none"]), Io = Array.from(Ri).join(", ");
+} = Si, { TokenError: T } = ie, { getAsyncKey: Eo, ensurePromiseCallback: Ao } = xi, { createPrivateKey: To, createSecretKey: Bo } = re, { parse: Nr } = ur, Ii = /* @__PURE__ */ new Set([...bo, ..._o, ...So, ...xo, "none"]), Ro = Array.from(Ii).join(", ");
 function ki(o, t) {
   const r = o.slice(0, 2), n = t.slice(0, 2);
   let f = !0;
@@ -3299,7 +3299,7 @@ function ki(o, t) {
 function Pi(o, t) {
   return typeof o == "string" && (o = Buffer.from(o, "utf-8")), Mo && (o = t[0] === "H" ? Bo(o) : To(o)), o;
 }
-function Ro({
+function Io({
   key: o,
   algorithm: t,
   noTimestamp: r,
@@ -3312,11 +3312,11 @@ function Ro({
   isAsync: M,
   additionalHeader: b,
   fixedPayload: _
-}, I, k) {
+}, R, k) {
   const [$, F] = M ? Ao(k) : [];
-  if (typeof I != "object")
+  if (typeof R != "object")
     throw new T(T.codes.invalidType, "The payload must be an object.");
-  if (I.exp && (!Number.isInteger(I.exp) || I.exp < 0))
+  if (R.exp && (!Number.isInteger(R.exp) || R.exp < 0))
     throw new T(T.codes.invalidClaimValue, "The exp claim must be a positive integer.");
   const G = {
     alg: t,
@@ -3325,25 +3325,25 @@ function Ro({
     ...b
   };
   let Bt = "";
-  const C = I.iat * 1e3 || f || Date.now(), It = {
-    ...I,
+  const C = R.iat * 1e3 || f || Date.now(), Rt = {
+    ...R,
     ..._,
     iat: r ? void 0 : Math.floor(C / 1e3),
-    exp: I.exp ? I.exp : a ? Math.floor((C + a) / 1e3) : void 0,
+    exp: R.exp ? R.exp : a ? Math.floor((C + a) / 1e3) : void 0,
     nbf: m ? Math.floor((C + m) / 1e3) : void 0
   };
-  if (n && Object.assign(I, It), Bt = Buffer.from(JSON.stringify(It), "utf-8").toString("base64").replace(Ke, Fe), !$) {
-    const R = Buffer.from(JSON.stringify(G), "utf-8").toString("base64").replace(Ke, Fe) + "." + Bt, K = t === "none" ? "" : Or(t, o, R);
-    return R + "." + K;
+  if (n && Object.assign(R, Rt), Bt = Buffer.from(JSON.stringify(Rt), "utf-8").toString("base64").replace(Ke, Fe), !$) {
+    const I = Buffer.from(JSON.stringify(G), "utf-8").toString("base64").replace(Ke, Fe) + "." + Bt, K = t === "none" ? "" : Or(t, o, I);
+    return I + "." + K;
   }
-  return Eo(o, { header: G, payload: I }, (P, R) => {
+  return Eo(o, { header: G, payload: R }, (P, I) => {
     if (P) {
       const q = T.wrap(P, T.codes.keyFetchingError, "Cannot fetch key.");
       return $(q);
     }
-    if (typeof R == "string")
-      R = Buffer.from(R, "utf-8");
-    else if (!(R instanceof Buffer))
+    if (typeof I == "string")
+      I = Buffer.from(I, "utf-8");
+    else if (!(I instanceof Buffer))
       return $(
         new T(
           T.codes.keyFetchingError,
@@ -3352,10 +3352,10 @@ function Ro({
       );
     let K;
     try {
-      const q = Ii(R, t);
-      t ? ki(t, q) : G.alg = t = q, R = Pi(R, t);
+      const q = Ri(I, t);
+      t ? ki(t, q) : G.alg = t = q, I = Pi(I, t);
       const O = Buffer.from(JSON.stringify(G), "utf-8").toString("base64").replace(Ke, Fe) + "." + Bt;
-      K = O + "." + Or(t, R, O);
+      K = O + "." + Or(t, I, O);
     } catch (q) {
       return $(q);
     }
@@ -3374,16 +3374,16 @@ var ko = function(t) {
     jti: M,
     aud: b,
     iss: _,
-    sub: I,
+    sub: R,
     nonce: k,
     kid: $,
     typ: F,
     header: G
   } = { clockTimestamp: 0, ...t };
-  if (n && !Ri.has(n))
+  if (n && !Ii.has(n))
     throw new T(
       T.codes.invalidOption,
-      `The algorithm option must be one of the following values: ${Io}.`
+      `The algorithm option must be one of the following values: ${Ro}.`
     );
   const Bt = typeof r, C = Bt === "object" && r && r.key && r.passphrase;
   if (n === "none") {
@@ -3405,7 +3405,7 @@ var ko = function(t) {
       );
   }
   if (r && Bt !== "function") {
-    const K = Ii(C ? r.key : r, n);
+    const K = Ri(C ? r.key : r, n);
     n ? ki(n, K) : n = K, r = Pi(r, n);
   }
   if (g && (typeof g == "string" && (g = Nr(g)), typeof g != "number" || g < 0))
@@ -3420,7 +3420,7 @@ var ko = function(t) {
     throw new T(T.codes.invalidOption, "The aud option must be a string or an array of strings.");
   if (_ && typeof _ != "string")
     throw new T(T.codes.invalidOption, "The iss option must be a string.");
-  if (I && typeof I != "string")
+  if (R && typeof R != "string")
     throw new T(T.codes.invalidOption, "The sub option must be a string.");
   if (k && typeof k != "string")
     throw new T(T.codes.invalidOption, "The nonce option must be a string.");
@@ -3428,7 +3428,7 @@ var ko = function(t) {
     throw new T(T.codes.invalidOption, "The kid option must be a string.");
   if (G && typeof G != "object")
     throw new T(T.codes.invalidOption, "The header option must be a object.");
-  const P = Object.entries({ jti: M, aud: b, iss: _, sub: I, nonce: k }).reduce((K, [q, Rt]) => (Rt !== void 0 && (K[q] = Rt), K), {}), R = {
+  const P = Object.entries({ jti: M, aud: b, iss: _, sub: R, nonce: k }).reduce((K, [q, It]) => (It !== void 0 && (K[q] = It), K), {}), I = {
     key: r,
     algorithm: n,
     noTimestamp: f,
@@ -3442,7 +3442,7 @@ var ko = function(t) {
     additionalHeader: G,
     fixedPayload: P
   };
-  return Ro.bind(null, R);
+  return Io.bind(null, I);
 };
 const { TokenError: Po, TOKEN_ERROR_CODES: Co } = ie, Oo = Lr, No = vo, Do = ko;
 var Dr = {
@@ -3483,18 +3483,20 @@ const Vo = {
         summary: "Create a server user",
         operationId: "createUser",
         execution: async ({ req: o, res: t }) => {
-          const { password: r, subdomain: n } = o.body;
+          const { password: r, subdomain: n } = o.body, { isRootUser: f, isServer: a, _user: m } = t.locals;
+          if (!a && !f && !m?.id)
+            return { status: 401, data: null };
           if (r.length < 15)
             return t.status(400).send({
               message: "Password length too short."
             });
-          const f = qe.randomBytes(16).toString("hex"), a = qe.scryptSync(r, f, 32).toString("hex");
+          const g = qe.randomBytes(16).toString("hex"), w = qe.scryptSync(r, g, 32).toString("hex");
           return [
             () => [
               {
                 statement: "INSERT INTO users (id, subdomain, hash, salt, permissions, user_details) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)",
                 data_key: "newUser",
-                values: [n, a, f, {}, {}]
+                values: [n, w, g, {}, {}]
               }
             ]
           ];

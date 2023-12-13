@@ -1,5 +1,12 @@
 QUESTIONS:
 
+- User profiles
+- We can have a "source of truth" for information on the user object
+- Apps can request the creation of a profile, which can be synced to the source of truth or custom
+- Like, custom extensions
+- We can have apps create profiles, we can have users create profiles, we can append it to plugin permission...
+- Or we can ignore it for now and just do webid
+
 - FLOW
 - Routes:
 - middleware, execution, handleReturn, handleResponse

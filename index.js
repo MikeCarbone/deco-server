@@ -553,7 +553,7 @@ export async function buildRouteSubset({ server, user }) {
                   res.status(routeReturn.status).send(routeReturn.data);
                 } catch (err) {
                   console.log(err);
-                  res.status(500).send({ sucess: false });
+                  res.status(500).send({ success: false });
                 }
               };
 
@@ -896,7 +896,7 @@ export async function createOwnerIfNotThereAlready() {
   const allUsers = usersFetch.allUsers.rows;
   if (allUsers && allUsers?.length > 0) return;
   const postExecution = endpoints.paths["/"].post.execution;
-  const postExecutionOps = await postExecution({ req: { body: { password: DEFAULT_USER_PASSWORD, subdomain: "root" } }, res: { locals: {} } });
+  const postExecutionOps = await postExecution({ req: { body: { password: DEFAULT_USER_PASSWORD, subdomain: "root" } }, res: { locals: { isServer: true } } });
   const results = await executeOperations(postExecutionOps, usersPlugin.id);
   console.log("New owner created.");
   return results;
@@ -926,6 +926,12 @@ export async function buildRoutes(mainServer) {
       // POST _meta/login
       // POST _meta/change-password
 
+      // Let's expose if it's the root user or not
+      serverInstance.use((_req, res, next) => {
+        res.locals.isRootUser = !hasSubdomain;
+        next();
+      });
+
       // While yes we're using express, it'll be more helpful to know this is a Deco server in responses
       serverInstance.use((_req, res, next) => {
         res.setHeader("X-Powered-By", "Deco");
@@ -933,6 +939,60 @@ export async function buildRoutes(mainServer) {
       });
       serverInstance.use(morgan("tiny"));
       serverInstance.use(express.json());
+
+      serverInstance.get("/_meta/webid", (req, res) => {
+        return res.status(200).send({ user: user.subdomain });
+      });
+
+      // This doesnt factor in components
+      serverInstance.get("/_meta/open-api", (req, res) => {
+        const paths = {};
+
+        plugins.forEach((plugin) => {
+          const routes = plugin.routes.routes;
+          routes.forEach((route) => {
+            const url = `/plugins/${plugin.name}${route.path}`;
+            if (!paths[url]) {
+              paths[url] = {};
+            }
+            paths[url][route.method] = {
+              security:
+                route?.privacy === "PUBLIC"
+                  ? []
+                  : [
+                      {
+                        csrfTokenAuth: [],
+                      },
+                    ],
+              consumes: ["application/json"],
+              ...route,
+            };
+          });
+        });
+        return res.status(200).send({
+          openapi: "3.0.0",
+          info: {
+            title: "Deco API",
+            version: "1.0.0",
+          },
+          servers: [
+            {
+              url: "http://localhost:3456",
+              description: "Local Development Server",
+            },
+          ],
+          components: {
+            securitySchemes: {
+              csrfTokenAuth: {
+                type: "apiKey",
+                in: "cookie",
+                name: "XSRF-TOKEN",
+              },
+            },
+          },
+          paths,
+        });
+      });
 
       await buildRouteSubset({ server: serverInstance, user });
 
@@ -955,7 +1015,7 @@ export const server = express();
 // Users will need their own DB connection configuration
 // Users should be able to bring multiple databases too, not just one
 // Can create a databases table, plugins can refer to a database ID so we know which pool to hit with our queries
-try {
+export async function deco() {
   await installPlugin(CORE_PLUGINS[CORE_KEYS.plugins].manifest.path, { isLocal: true, coreKey: CORE_KEYS.plugins, id: CORE_PLUGINS[CORE_KEYS.plugins].id });
   await installPlugin(CORE_PLUGINS[CORE_KEYS.users].manifest.path, { isLocal: true, coreKey: CORE_KEYS.users });
   await installPlugin(CORE_PLUGINS[CORE_KEYS.permissions].manifest.path, { isLocal: true, coreKey: CORE_KEYS.permissions });
@@ -966,8 +1026,6 @@ try {
   server.listen(PORT, () => {
     console.log(`Server is running on http://localhost:${PORT}`);
   });
-} catch (err) {
-  console.log(err);
 }
 
 // This is where we setup meta endpoints at the server level (not per-user)
@@ -1004,21 +1062,26 @@ server.get("/_meta/directory", async (req, res) => {
 // Imagine someone is looking through an plugin store and clicks "install"
 // We can send a request to this endpoint
 // Logic can be reused when an plugin requests an plugin be installed
-server.get("/_meta/install", async (req, res) => {
+// serverInstance.get("/_meta/install", async (req, res) => {
+//   try {
+//     await installPlugin("http://localhost:4321/manifest.json");
+//     // At this point, we have to do a teardown and rebuild of the server routes
+
+//     await buildRoutes(server);
+
+//     console.log("Routes rebuilt successfully.");
+//     return res.status(200).send({ success: true });
+//   } catch (err) {
+//     console.log("Plugin installation failed.");
+//     console.log(err);
+//     return res.status(500).send({ success: false });
+//   }
+// });
+
+(async () => {
   try {
-    console.log("Installing plugin...");
-    await installPlugin("http://localhost:4321/manifest.json");
-
-    console.log("Rebuilding routes...");
-    // At this point, we have to do a teardown and rebuild of the server routes
-
-    await buildRoutes(server);
-
-    console.log("Routes rebuilt successfully.");
-    return res.status(200).send({ success: true });
+    await deco();
   } catch (err) {
-    console.log("Plugin installation failed.");
-    console.log(err);
-    return res.status(500).send({ success: false });
+    console.error(err);
   }
-});
+})();

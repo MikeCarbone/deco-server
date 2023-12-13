@@ -1,33 +1,33 @@
-import R from "crypto";
-const i = () => ({
+import y from "crypto";
+const r = () => ({
   plugins: {
     table_name: "plugins"
   },
-  installRequests: {
-    table_name: "install_requests"
+  installationRequests: {
+    table_name: "installation_requests"
   }
-}), m = (t) => ({
-  routes: t.map((e) => ({
-    path: e.path,
-    method: e.method,
-    summary: e == null ? void 0 : e.summary,
-    operation_id: e == null ? void 0 : e.operationId,
-    privacy: (e == null ? void 0 : e.privacy) || "PRIVATE"
+}), m = (e) => ({
+  routes: e.map((t) => ({
+    path: t.path,
+    method: t.method,
+    summary: t == null ? void 0 : t.summary,
+    operation_id: t == null ? void 0 : t.operationId,
+    privacy: (t == null ? void 0 : t.privacy) || "PRIVATE"
   }))
 });
-function h(t, e, s) {
-  const n = R.createCipheriv(
+function g(e, t, n) {
+  const s = y.createCipheriv(
     "aes-256-cbc",
-    Buffer.from(e, "hex"),
-    Buffer.from(s, "hex")
+    Buffer.from(t, "hex"),
+    Buffer.from(n, "hex")
   );
-  let a = n.update(t, "utf-8", "hex");
-  return a += n.final("hex"), a;
+  let a = s.update(e, "utf-8", "hex");
+  return a += s.final("hex"), a;
 }
-const E = () => [
+const f = () => [
   () => [
     {
-      statement: `CREATE TABLE ${i().plugins.table_name} (
+      statement: `CREATE TABLE ${r().plugins.table_name} (
 						id UUID PRIMARY KEY,
 						name VARCHAR(255),
 						manifest_uri VARCHAR(255),
@@ -42,7 +42,7 @@ const E = () => [
       values: []
     },
     {
-      statement: `CREATE TABLE ${i().installRequests.table_name} (
+      statement: `CREATE TABLE ${r().installationRequests.table_name} (
 						id UUID PRIMARY KEY,
 						manifest_uri VARCHAR(255),
 						requested_by_uri VARCHAR(255),
@@ -58,36 +58,36 @@ const E = () => [
       post: {
         summary: "Create a record of a plugin installation",
         operationId: "createInstallationRecord",
-        execution: async ({ req: t, res: e, runStatement: s }) => {
-          const a = (await s({
-            statement: `SELECT * FROM ${i().plugins.table_name} WHERE name=$1`,
+        execution: async ({ req: e, res: t, runStatement: n }) => {
+          const a = (await n({
+            statement: `SELECT * FROM ${r().plugins.table_name} WHERE name=$1`,
             data_key: "existingPlugins",
-            values: [t.body.name]
+            values: [e.body.name]
           })).existingPlugins.rows;
           if (a != null && a.length)
-            return e.status(400).send({ message: "Plugin name already exists." });
+            return t.status(400).send({ message: "Plugin name already exists." });
           const {
-            id: r,
+            id: i,
             name: o,
-            manifest_uri: d,
+            manifest_uri: c,
             permissions: u = [],
             core_key: l,
-            routes: c
-          } = t.body, _ = m(c), y = R.randomBytes(16).toString("hex");
+            routes: d
+          } = e.body, R = m(d), _ = y.randomBytes(16).toString("hex");
           return [
             () => [
               {
-                statement: `INSERT INTO ${i().plugins.table_name} (id, name, manifest_uri, permissions, core_key, routes, secrets, initialization_vector) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+                statement: `INSERT INTO ${r().plugins.table_name} (id, name, manifest_uri, permissions, core_key, routes, secrets, initialization_vector) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
                 data_key: "newPlugin",
                 values: [
-                  r,
+                  i,
                   o,
-                  d,
+                  c,
                   u,
                   l,
-                  _,
+                  R,
                   {},
-                  y
+                  _
                 ]
               }
             ]
@@ -100,47 +100,82 @@ const E = () => [
         execution: () => [
           () => [
             {
-              statement: `SELECT * FROM ${i().plugins.table_name};`,
+              statement: `SELECT * FROM ${r().plugins.table_name};`,
               data_key: "allPlugins",
               values: []
             }
           ]
         ],
-        handleReturn: ({ memory: t }) => ({
+        handleReturn: ({ memory: e }) => ({
           status: 200,
-          data: t == null ? void 0 : t.allPlugins.rows
+          data: e == null ? void 0 : e.allPlugins.rows
         })
       }
     },
-    "/install-requests": {
+    "/install": {
+      post: {
+        summary: "Install a plugin",
+        operationId: "installPlugin",
+        execution: async (e) => {
+          var o;
+          const { req: t, res: n, installPlugin: s } = e, { isRootUser: a } = n.locals;
+          if (!a)
+            return {
+              status: 401,
+              data: null
+            };
+          const i = (o = t.body) == null ? void 0 : o.manifest_uri;
+          return i && await s(i, { rebuildAfterSuccess: !0 }), {
+            status: 200,
+            data: null
+          };
+        },
+        requestBody: {
+          required: !0,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  manifest_uri: {
+                    type: "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/installation-requests": {
       post: {
         summary: "Request a plugin be installed",
-        operationId: "requestPluginInstall",
+        operationId: "requestPluginInstallation",
         privacy: "PUBLIC",
-        execution: async (t) => {
-          const { req: e, plugins: s } = t, { manifest_uri: n } = e.body, a = e.get("host"), r = await fetch(n);
-          if (!r.ok)
+        execution: async (e) => {
+          const { req: t, plugins: n } = e, { manifest_uri: s } = t.body, a = t.get("host"), i = await fetch(s);
+          if (!i.ok)
             return {
               status: 500,
               data: null,
               message: "Manifest JSON could not be fetched"
             };
-          const o = await r.json();
-          return s["deco-notifications"] && await s["deco-notifications"].operations.createNotification({
-            ...t,
+          const o = await i.json();
+          return n["deco-notifications"] && await n["deco-notifications"].operations.createNotification({
+            ...e,
             req: {
-              ...t.req,
+              ...e.req,
               body: {
-                plugin_id: s._currentPlugin.id,
-                message: `${a} wants to install ${o.name} from ${n}`
+                plugin_id: n._currentPlugin.id,
+                message: `${a} wants to installation ${o.name} from ${s}`
               }
             }
           }), [
             () => [
               {
-                statement: `INSERT INTO ${i().installRequests.table_name} (id, manifest_uri, requested_by_uri) VALUES (gen_random_uuid(), $1, $2)`,
-                data_key: "installRequest",
-                values: [n, a]
+                statement: `INSERT INTO ${r().installationRequests.table_name} (id, manifest_uri, requested_by_uri) VALUES (gen_random_uuid(), $1, $2)`,
+                data_key: "installationRequest",
+                values: [s, a]
               }
             ]
           ];
@@ -148,37 +183,37 @@ const E = () => [
       },
       get: {
         summary: "Fetch installation requests",
-        operationId: "fetchInstallRequests",
+        operationId: "fetchInstallationRequests",
         execution: () => [
           () => [
             {
-              statement: `SELECT * FROM ${i().installRequests.table_name} ORDER BY created_at DESC LIMIT 50;`,
-              data_key: "installRequests",
+              statement: `SELECT * FROM ${r().installationRequests.table_name} ORDER BY created_at DESC LIMIT 50;`,
+              data_key: "installationRequests",
               values: []
             }
           ]
         ],
-        handleReturn: ({ memory: t }) => {
-          const { installRequests: e } = t;
+        handleReturn: ({ memory: e }) => {
+          const { installationRequests: t } = e;
           return {
             status: 200,
-            data: e == null ? void 0 : e.rows
+            data: t == null ? void 0 : t.rows
           };
         }
       }
     },
-    "/install-requests/{id}": {
+    "/installation-requests/{id}": {
       delete: {
         summary: "Delete an installation request",
-        operationId: "deleteInstallRequest",
-        execution: async ({ req: t }) => {
-          const { id: e } = t.params;
+        operationId: "deleteInstallationRequest",
+        execution: async ({ req: e }) => {
+          const { id: t } = e.params;
           return [
             () => [
               {
-                statement: `DELETE FROM ${i().installRequests.table_name} WHERE id = $1`,
-                data_key: "installRequest",
-                values: [e]
+                statement: `DELETE FROM ${r().installationRequests.table_name} WHERE id = $1`,
+                data_key: "installationRequest",
+                values: [t]
               }
             ]
           ];
@@ -186,37 +221,37 @@ const E = () => [
       },
       get: {
         summary: "Fetch an installation request",
-        operationId: "fetchInstallRequest",
-        execution: async ({ req: t }) => {
-          const { id: e } = t.params;
+        operationId: "fetchInstallationRequest",
+        execution: async ({ req: e }) => {
+          const { id: t } = e.params;
           return [
             () => [
               {
-                statement: `SELECT * FROM ${i().installRequests.table_name} WHERE id = $1`,
-                data_key: "installRequest",
-                values: [e]
+                statement: `SELECT * FROM ${r().installationRequests.table_name} WHERE id = $1`,
+                data_key: "installationRequest",
+                values: [t]
               }
             ]
           ];
         }
       }
     },
-    "/install-requests/{id}/accept": {
+    "/installation-requests/{id}/accept": {
       post: {
         summary: "Accept an installation request",
-        operationId: "acceptInstallRequest",
-        execution: async (t) => {
-          var r;
-          const { installPlugin: e, runRoute: s } = t, { installRequest: n } = await s(
-            t,
-            p.paths["/install-requests/{id}"].get
-          ), a = (r = n.rows[0]) == null ? void 0 : r.manifest_uri;
+        operationId: "acceptInstallationRequest",
+        execution: async (e) => {
+          var i;
+          const { installPlugin: t, runRoute: n } = e, { installationRequest: s } = await n(
+            e,
+            p.paths["/installation-requests/{id}"].get
+          ), a = (i = s.rows[0]) == null ? void 0 : i.manifest_uri;
           try {
-            return await e(a, {
+            return await t(a, {
               rebuildAfterSuccess: !0
-            }), await s(
-              t,
-              p.paths["/install-requests/{id}"].delete
+            }), await n(
+              e,
+              p.paths["/installation-requests/{id}"].delete
             ), {
               status: 200,
               data: null
@@ -232,16 +267,16 @@ const E = () => [
     },
     "/{id}": {
       delete: {
-        summary: "Delete an plugin installation record",
+        summary: "Delete a plugin installation record",
         operationId: "deleteInstallationRecord",
-        execution: ({ req: t }) => {
-          const { id: e } = t.params;
+        execution: ({ req: e }) => {
+          const { id: t } = e.params;
           return [
             () => [
               {
-                statement: `DELETE FROM ${i().plugins.table_name} WHERE id = $1;`,
+                statement: `DELETE FROM ${r().plugins.table_name} WHERE id = $1;`,
                 data_key: "deletedInstallationRecord",
-                values: [e]
+                values: [t]
               }
             ]
           ];
@@ -250,22 +285,22 @@ const E = () => [
       get: {
         summary: "Fetch plugin installation record",
         operationId: "getInstallationRecord",
-        execution: ({ req: t }) => {
-          const { id: e } = t.params;
+        execution: ({ req: e }) => {
+          const { id: t } = e.params;
           return [
             () => [
               {
-                statement: `SELECT * FROM ${i().plugins.table_name} WHERE id = $1;`,
+                statement: `SELECT * FROM ${r().plugins.table_name} WHERE id = $1;`,
                 data_key: "fetchedInstallationRecord",
-                values: [e]
+                values: [t]
               }
             ]
           ];
         },
-        handleReturn: ({ memory: t }) => {
-          const { fetchedInstallationRecord: e } = t;
-          return e != null && e.rows ? {
-            data: e == null ? void 0 : e.rows[0],
+        handleReturn: ({ memory: e }) => {
+          const { fetchedInstallationRecord: t } = e;
+          return t != null && t.rows ? {
+            data: t == null ? void 0 : t.rows[0],
             status: 200
           } : {
             data: null,
@@ -276,18 +311,18 @@ const E = () => [
       patch: {
         summary: "Update a plugin installation record",
         operationId: "updateInstallationRecord",
-        execution: ({ req: t }) => {
-          const { id: e } = t.params, { manifest_uri: s, permissions: n, core_key: a, routes: r } = t.body, o = m(r);
+        execution: ({ req: e }) => {
+          const { id: t } = e.params, { manifest_uri: n, permissions: s, core_key: a, routes: i } = e.body, o = m(i);
           return [
             () => [
               {
-                statement: `UPDATE ${i().plugins.table_name} SET manifest_uri = $2, permissions = $3, core_key = $4, routes = $5
+                statement: `UPDATE ${r().plugins.table_name} SET manifest_uri = $2, permissions = $3, core_key = $4, routes = $5
 									WHERE id = $1;`,
                 data_key: "updatedInstallationRecord",
                 values: [
-                  e,
-                  s,
+                  t,
                   n,
+                  s,
                   a,
                   o
                 ]
@@ -301,28 +336,28 @@ const E = () => [
       post: {
         summary: "Save a plugin secret",
         operationId: "savePluginSecret",
-        execution: async (t) => {
-          const { req: e, res: s, runRoute: n } = t, { id: a } = e.params, { key: r, value: o } = e.body, d = s.locals._server.encryption_string, { data: u } = await n(
-            t,
+        execution: async (e) => {
+          const { req: t, res: n, runRoute: s } = e, { id: a } = t.params, { key: i, value: o } = t.body, c = n.locals._server.encryption_string, { data: u } = await s(
+            e,
             p.paths["/{id}"].get
-          ), l = u.secrets, c = h(
+          ), l = u.secrets, d = g(
             o,
-            d,
+            c,
             u.initialization_vector
           );
-          return l[r] = c, u.secrets = l, [
+          return l[i] = d, u.secrets = l, [
             () => [
               {
-                statement: `UPDATE ${i().plugins.table_name} SET secrets = $1 WHERE id = $2`,
+                statement: `UPDATE ${r().plugins.table_name} SET secrets = $1 WHERE id = $2`,
                 data_key: "secretSaveRecord",
                 values: [l, a]
               }
             ]
           ];
         },
-        handleReturn: ({ memory: t }) => {
-          const { secretSaveRecord: e } = t;
-          return (e == null ? void 0 : e.rowCount) > 0 ? {
+        handleReturn: ({ memory: e }) => {
+          const { secretSaveRecord: t } = e;
+          return (t == null ? void 0 : t.rowCount) > 0 ? {
             status: 200,
             data: null
           } : {
@@ -393,17 +428,17 @@ const E = () => [
           "installed_at"
         ]
       },
-      InstallRequest: {
+      InstallationRequest: {
         type: "object",
         properties: {
           id: {
             type: "string",
             format: "uuid",
-            description: "The unique identifier for the install request."
+            description: "The unique identifier for the installation request."
           },
           manifest_uri: {
             type: "string",
-            description: "The URI of the manifest associated with the install request."
+            description: "The URI of the manifest associated with the installation request."
           },
           requested_by_uri: {
             type: "string",
@@ -412,7 +447,7 @@ const E = () => [
           created_at: {
             type: "string",
             format: "date-time",
-            description: "The timestamp when the install request was created.",
+            description: "The timestamp when the installation request was created.",
             default: "CURRENT_TIMESTAMP"
           }
         },
@@ -428,6 +463,6 @@ const E = () => [
 };
 export {
   p as endpoints,
-  E as onInstall,
-  i as tables
+  f as onInstall,
+  r as tables
 };

@@ -24,19 +24,19 @@ const m = () => ({
       post: {
         summary: "Create a permission",
         operationId: "createPermission",
-        execution: async ({ req: e }) => {
+        execution: async ({ req: t }) => {
           const {
-            domain: t,
+            domain: e,
             resource: i,
             method: s,
-            expiration: a,
+            expiration: o,
             plugin_name: p
-          } = e.body;
-          let r = a;
+          } = t.body;
+          let r = o;
           if (!r) {
             const n = /* @__PURE__ */ new Date();
-            let o = new Date(n);
-            o.setFullYear(n.getFullYear() + 1), r = o.getTime();
+            let a = new Date(n);
+            a.setFullYear(n.getFullYear() + 1), r = a.getTime();
           }
           return [
             () => [
@@ -44,7 +44,7 @@ const m = () => ({
                 statement: "INSERT INTO permissions (id, domain, resource, method, plugin_name, expires) VALUES (gen_random_uuid(), $1, $2, $3, $4, $5)",
                 data_key: "newPermission",
                 values: [
-                  t.toUpperCase(),
+                  e.toUpperCase(),
                   i.toUpperCase(),
                   s.toUpperCase(),
                   p,
@@ -58,21 +58,28 @@ const m = () => ({
       get: {
         summary: "Fetch permissions",
         operationId: "fetchPermissions",
-        execution: ({ req: e }) => {
-          const { resource: t, method: i, domain: s } = e.query;
+        execution: ({ req: t }) => {
+          const { resource: e, method: i, domain: s } = t.query;
           return [
             () => [
               {
                 statement: "SELECT * FROM permissions WHERE resource = $1 AND method = $2 AND domain = $3;",
                 data_key: "permissions",
                 values: [
-                  t.toUpperCase(),
-                  i.toUpperCase(),
-                  s.toUpperCase()
+                  e == null ? void 0 : e.toUpperCase(),
+                  i == null ? void 0 : i.toUpperCase(),
+                  s == null ? void 0 : s.toUpperCase()
                 ]
               }
             ]
           ];
+        },
+        handleReturn: ({ memory: t }) => {
+          const { permissions: e } = t;
+          return {
+            status: 200,
+            data: e == null ? void 0 : e.rows
+          };
         }
       }
     }
