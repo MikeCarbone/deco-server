@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/mikecarbone/deco-server/compare/v1.0.2...v1.0.3) (2023-12-14)
+
+
+### Bug Fixes
+
+* **release:** specifies build files in package ([#5](https://github.com/mikecarbone/deco-server/issues/5)) ([da5b266](https://github.com/mikecarbone/deco-server/commit/da5b2666d40f9463fe194ff559f44d895cf03d4a))
+
 ## [1.0.2](https://github.com/mikecarbone/deco-server/compare/v1.0.1...v1.0.2) (2023-12-14)
 
 
