@@ -4,9 +4,10 @@
   "description": "A web server that enables installable plugins, structured learning and bidirectional AI interactions.",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon index.js",
+    "dev": "nodemon dev.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "postinstall": "node ./lib/postInstall.js"
+    "postinstall": "node ./lib/postInstallRun.js",
+    "setup-dev": "node ./lib/setupDev.js"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -25,7 +26,6 @@
     "express": "^4.18.2",
     "morgan": "^1.10.0",
     "pg": "^8.11.3",
-    "uuid": "^9.0.1",
     "vhost": "^3.0.2"
   },
   "devDependencies": {

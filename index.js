@@ -2,11 +2,10 @@ import express from "express";
 import dotenv from "dotenv";
 import { promises as fs } from "fs";
 import path from "path";
-import { v4 as uuid } from "uuid";
 import { fileURLToPath } from "url";
 import vhost from "vhost";
 import morgan from "morgan";
-import { createDecipheriv } from "crypto";
+import { createDecipheriv, randomUUID as uuid } from "crypto";
 import cookie from "cookie";
 import { client } from "./db/index.js";
 
@@ -19,7 +18,7 @@ dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 
-const { PLUGIN_SECRET_ENCRYPTION_STRING, LOGIN_JWT_KEY, DEFAULT_USER_PASSWORD } = config;
+const { PLUGIN_SECRET_ENCRYPTION_STRING, LOGIN_JWT_KEY, DEFAULT_USER_PASSWORD, INITIALIZE_CORE_PLUGIN_ID } = config;
 
 // Decryption function
 export function decryptSecret(encryptedText, key, iv) {
@@ -418,6 +417,11 @@ export async function buildRouteSubset({ server, user }) {
       return false;
     });
   }
+
+  /**
+   * When handling the core user plugin, we need to remember:
+   * Users will live in a single table on the root admin database
+   */
 
   await Promise.all(
     plugins.map(async (installedPlugin) => {
@@ -876,7 +880,7 @@ export const CORE_PLUGINS = {
     // We have to create this ID first so that we can run the installPlugin function
     // Ideally this ID gets a static generation upon first server build. It should not change
     // when the server restarts, so running a function here will not work
-    id: "aa3d07b0-3042-44ea-b6b9-b30e3437a449",
+    id: INITIALIZE_CORE_PLUGIN_ID,
     manifest: {
       path: "../deco-core/packages/deco-plugins/dist/manifest.json",
     },
@@ -1025,42 +1029,32 @@ export async function deco() {
 }
 
 // This is where we setup meta endpoints at the server level (not per-user)
-server.get("/_meta/directory", async (req, res) => {
-  // What do we want to do for users?
-  // roles? is_owner, is_admin, detailsJSON
-  //    can store a flat object of "name.nickname" "address.primary.street_address_1"
-  // Support for webID information, extendable
-  // id, created_at, db_key, manage
-  // root domain will be for owner
-  // subdomains will be for tenants
-  //
-  // Steps
-  // 1. generate admin / owner user
-  // 2. allow only admins to create new users
-  // 3. admin can edit user permissions
-  // users shouldnt need a username, because the url is their username
-  //
-  // users will have to log in... how? link to personal?
-  // log in flow...
-  // enter your url endpoint
-  // plugin go POST to url/authorize, get a URL in response
-  // send user to URL
-  // 		if logged in, user can grant permissions, etc
-  // 		if logged out, log in then ^
-  // after acceptance or denial, redirect user back to plugin
-  //
-  // Do we want other services to be able to create users?
-  // How do we have things pass auth
-  // Middleware only triggered on a request
-  return res.status(200).send({ directory: [] });
-});
-
-if (process.env.NODE_ENV === "development") {
-  (async () => {
-    try {
-      deco();
-    } catch (err) {
-      console.error(err);
-    }
-  })();
-}
+// server.get("/_meta/directory", async (req, res) => {
+// What do we want to do for users?
+// roles? is_owner, is_admin, detailsJSON
+//    can store a flat object of "name.nickname" "address.primary.street_address_1"
+// Support for webID information, extendable
+// id, created_at, db_key, manage
+// root domain will be for owner
+// subdomains will be for tenants
+//
+// Steps
+// 1. generate admin / owner user
+// 2. allow only admins to create new users
+// 3. admin can edit user permissions
+// users shouldnt need a username, because the url is their username
+//
+// users will have to log in... how? link to personal?
+// log in flow...
+// enter your url endpoint
+// plugin go POST to url/authorize, get a URL in response
+// send user to URL
+// 		if logged in, user can grant permissions, etc
+// 		if logged out, log in then ^
+// after acceptance or denial, redirect user back to plugin
+//
+// Do we want other services to be able to create users?
+// How do we have things pass auth
+// Middleware only triggered on a request
+// return res.status(200).send({ directory: [] });
+// });
