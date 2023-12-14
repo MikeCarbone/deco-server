@@ -10,6 +10,10 @@
   "engines": {
     "node": ">=18.0.0"
   },
+  "files": [
+    "db",
+    "index.js"
+  ],
   "type": "module",
   "author": "Mike Carbone <mike@carbonology.in> (https://carbonemike.com)",
   "license": "MIT",
