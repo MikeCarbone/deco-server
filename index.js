@@ -19,8 +19,7 @@ dotenv.config();
 
 const PORT = process.env.PORT || 3000;
 
-const { PLUGIN_SECRET_ENCRYPTION_STRING, LOGIN_JWT_KEY } = config;
-const DEFAULT_USER_PASSWORD = "kellykevinlindsaynickjill";
+const { PLUGIN_SECRET_ENCRYPTION_STRING, LOGIN_JWT_KEY, DEFAULT_USER_PASSWORD } = config;
 
 // Decryption function
 export function decryptSecret(encryptedText, key, iv) {
@@ -1056,29 +1055,12 @@ server.get("/_meta/directory", async (req, res) => {
   return res.status(200).send({ directory: [] });
 });
 
-// Imagine someone is looking through an plugin store and clicks "install"
-// We can send a request to this endpoint
-// Logic can be reused when an plugin requests an plugin be installed
-// serverInstance.get("/_meta/install", async (req, res) => {
-//   try {
-//     await installPlugin("http://localhost:4321/manifest.json");
-//     // At this point, we have to do a teardown and rebuild of the server routes
-
-//     await buildRoutes(server);
-
-//     console.log("Routes rebuilt successfully.");
-//     return res.status(200).send({ success: true });
-//   } catch (err) {
-//     console.log("Plugin installation failed.");
-//     console.log(err);
-//     return res.status(500).send({ success: false });
-//   }
-// });
-
-(async () => {
-  try {
-    await deco();
-  } catch (err) {
-    console.error(err);
-  }
-})();
+if (process.env.NODE_ENV === "development") {
+  (async () => {
+    try {
+      deco();
+    } catch (err) {
+      console.error(err);
+    }
+  })();
+}
