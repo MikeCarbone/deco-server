@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/mikecarbone/deco-server/compare/v1.0.0...v1.0.1) (2023-12-14)
+
+
+### Bug Fixes
+
+* **release:** change package visibility ([#3](https://github.com/mikecarbone/deco-server/issues/3)) ([aa82cae](https://github.com/mikecarbone/deco-server/commit/aa82cae56238fbe53a4be629db561289be2e7c37))
+
 # 1.0.0 (2023-12-14)
 
 
