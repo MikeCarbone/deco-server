@@ -1,3 +1,10 @@
+## [1.0.4](https://github.com/mikecarbone/deco-server/compare/v1.0.3...v1.0.4) (2023-12-14)
+
+
+### Bug Fixes
+
+* **release:** adds postinstall script ([#6](https://github.com/mikecarbone/deco-server/issues/6)) ([7f8abc3](https://github.com/mikecarbone/deco-server/commit/7f8abc30c9d6b3c2a236815ad749ea547447610c))
+
 ## [1.0.3](https://github.com/mikecarbone/deco-server/compare/v1.0.2...v1.0.3) (2023-12-14)
 
 
