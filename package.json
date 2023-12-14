@@ -42,5 +42,8 @@
   },
   "bugs": {
     "url": "https://github.com/mikecarbone/deco-server/issues"
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
