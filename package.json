@@ -5,13 +5,15 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "postinstall": "node ./lib/postInstall.js"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "files": [
     "db",
+    "lib",
     "index.js"
   ],
   "type": "module",

@@ -54,6 +54,8 @@ I'm still working on the details of this pattern.
 
 #### Core Plugins
 
+[Here is the repository for the core plugins.](https://github.com/MikeCarbone/deco-core)
+
 Core plugins are the minimum plugins required to run a Deco server. These plugins bring core functionality to the server, like users, permissions, notifications, and more.
 
 ### Users
@@ -103,6 +105,9 @@ Contributions are welcome. Here is what is still needed:
 - [x] Making Install requests
 - [x] Accepting Install requests
 - [x] Testing infrastructure
+- [ ] Multi-user database handling
+- [ ] Reset password flow
+- [ ] [Isolated VM](https://www.npmjs.com/package/isolated-vm) implementation for safe plugin execution
 - [ ] Updating / versioning plugins (checking for and executing)
 - [ ] User profiles
 - [ ] User permissions
