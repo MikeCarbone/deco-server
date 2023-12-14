@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/mikecarbone/deco-server/compare/v1.0.1...v1.0.2) (2023-12-14)
+
+
+### Bug Fixes
+
+* **release:** Fix privacy of package for real ([#4](https://github.com/mikecarbone/deco-server/issues/4)) ([bd025c5](https://github.com/mikecarbone/deco-server/commit/bd025c5abf8f9a7f9cea7208bf1f5189707f399a))
+
 ## [1.0.1](https://github.com/mikecarbone/deco-server/compare/v1.0.0...v1.0.1) (2023-12-14)
 
 
