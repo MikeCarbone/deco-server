@@ -1,5 +1,5 @@
 {
-  "name": "deco-server",
+  "name": "@deco-team/deco-server",
   "version": "0.0.1",
   "description": "A web server that enables installable plugins, structured learning and bidirectional AI interactions.",
   "main": "index.js",
@@ -23,6 +23,8 @@
     "vhost": "^3.0.2"
   },
   "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
     "jest": "^29.7.0",
     "nodemon": "^3.0.1",
     "semantic-release": "^22.0.12",
