@@ -1,5 +1,7 @@
 # Deco Server
 
+[![semantic-release: angular](https://img.shields.io/badge/semantic--release-angular-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
+
 Deco Server is an easy way to set up a web server that is compatible with the Deco protocol and ecosystem of plugins. The mission of Deco is [to create a network of artificially intelligent, **bidirectional** personal assistants](https://decojs.com).
 
 Why? I believe the future is networked artificial intelligence profiles. These profiles will be exposed via endpoint, be accessible to others, be able to read and write data, and communicate with other profiles on the internet. Currently, [there is no easy way to do this.](https://carbonemike.com/bidirectional-interactivity-limitations-of-ai-tools/) Deco Server is the first step in that process, because the server makes it easy for websites and applications to build on while enabling the creation of [a local Interaction Record](https://carbonemike.com/navigating-organizational-growth-with-an-interaction-record-and-llms/) to train the artificial intelligence on. This server centralizes user data, enables a new suite of applications, and makes all of the above possible. Everything under your control.

@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import { client } from "../db/index.js";
 import request from "supertest";
-import { CORE_APPS, CORE_KEYS, installApp, server } from "../index.js";
+import { CORE_PLUGINS, CORE_KEYS, installPlugin, server } from "../index.js";
 
 const CREATED_TABLES = [];
 
@@ -17,8 +17,8 @@ test("adds 1 + 2 to equal 3", () => {
 
 describe("Setup", () => {
   test("Creates app ID for db", () => {
-    expect(typeof CORE_APPS[CORE_KEYS.apps].id).toBe("string");
-    expect(CORE_APPS[CORE_KEYS.apps].id.length).toBe(36); // UUID length
+    expect(typeof CORE_PLUGINS[CORE_KEYS.apps].id).toBe("string");
+    expect(CORE_PLUGINS[CORE_KEYS.apps].id.length).toBe(36); // UUID length
   });
 
   test("Server stuff", async () => {
@@ -37,7 +37,7 @@ describe("Installations", () => {
   // tables are created successfully
   // saves routes entry in
   test("Installs remote app", async () => {
-    const install = await installApp("https://www.decojs.com/manifest.json");
+    const install = await installPlugin("https://www.decojs.com/manifest.json");
     const installedAppPath = path.resolve(__dirname, `../installs/${install.manifest.name}/app.js`);
     const installedManifestPath = path.resolve(__dirname, `../installs/${install.manifest.name}/manifest.json`);
     await expect(fs.access(installedAppPath)).resolves.toBeUndefined();
