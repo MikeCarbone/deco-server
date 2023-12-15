@@ -891,7 +891,7 @@ export async function createOwnerIfNotThereAlready() {
   const plugins = await loadPlugins();
   const usersPlugin = plugins.find((a) => a.core_key === CORE_KEYS.users);
   const { endpoints } = await import(`./installs/${usersPlugin.name}/app.js`);
-  const getExecution = await endpoints.paths["/"].get.execution();
+  const getExecution = await endpoints.paths["/"].get.execution({ res: { locals: { isRootUser: true } } });
   const usersFetch = await executeOperations(getExecution, usersPlugin.id);
   const allUsers = usersFetch.allUsers.rows;
   if (allUsers && allUsers?.length > 0) return;
@@ -909,7 +909,7 @@ export async function buildRoutes(mainServer) {
   const { endpoints } = await import(`./installs/${usersPlugin.name}/app.js`);
   const execution = endpoints.paths["/"].get.execution;
   // This execution ONLY applies to this specific user plugin
-  const executionOps = await execution();
+  const executionOps = await execution({ res: { locals: { isRootUser: true } } });
   const results = await executeOperations(executionOps, usersPlugin.id);
   const users = results["allUsers"].rows;
   const subservers = await Promise.all(
@@ -1017,10 +1017,11 @@ export const server = express();
 // Users should be able to bring multiple databases too, not just one
 // Can create a databases table, plugins can refer to a database ID so we know which pool to hit with our queries
 export async function deco() {
-  await installPlugin(CORE_PLUGINS[CORE_KEYS.plugins].manifest.path, { isLocal: true, coreKey: CORE_KEYS.plugins, id: CORE_PLUGINS[CORE_KEYS.plugins].id });
-  await installPlugin(CORE_PLUGINS[CORE_KEYS.users].manifest.path, { isLocal: true, coreKey: CORE_KEYS.users });
-  await installPlugin(CORE_PLUGINS[CORE_KEYS.permissions].manifest.path, { isLocal: true, coreKey: CORE_KEYS.permissions });
-  await installPlugin(CORE_PLUGINS[CORE_KEYS.notifications].manifest.path, { isLocal: true, coreKey: CORE_KEYS.notifications });
+  const isLocal = !!process.env.USE_LOCAL_PLUGINS;
+  await installPlugin(CORE_PLUGINS[CORE_KEYS.plugins].manifest.path, { isLocal, coreKey: CORE_KEYS.plugins, id: CORE_PLUGINS[CORE_KEYS.plugins].id });
+  await installPlugin(CORE_PLUGINS[CORE_KEYS.users].manifest.path, { isLocal, coreKey: CORE_KEYS.users });
+  await installPlugin(CORE_PLUGINS[CORE_KEYS.permissions].manifest.path, { isLocal, coreKey: CORE_KEYS.permissions });
+  await installPlugin(CORE_PLUGINS[CORE_KEYS.notifications].manifest.path, { isLocal, coreKey: CORE_KEYS.notifications });
   await createOwnerIfNotThereAlready();
   await buildRoutes(server);
   server.listen(PORT, () => {
