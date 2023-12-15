@@ -1,3 +1,10 @@
+## [1.0.5](https://github.com/mikecarbone/deco-server/compare/v1.0.4...v1.0.5) (2023-12-15)
+
+
+### Bug Fixes
+
+* **setup:** First run configuration ([#7](https://github.com/mikecarbone/deco-server/issues/7)) ([1843847](https://github.com/mikecarbone/deco-server/commit/184384751105b0998c142ef2b5bc29a0b6551afe))
+
 ## [1.0.4](https://github.com/mikecarbone/deco-server/compare/v1.0.3...v1.0.4) (2023-12-14)
 
 
