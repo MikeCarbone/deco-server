@@ -1,3 +1,10 @@
+## [1.0.6](https://github.com/mikecarbone/deco-server/compare/v1.0.5...v1.0.6) (2023-12-15)
+
+
+### Bug Fixes
+
+* **server:** fixes server run when accessing users  ([#8](https://github.com/mikecarbone/deco-server/issues/8)) ([0daa678](https://github.com/mikecarbone/deco-server/commit/0daa678115fdf44615efdd732acf7112ab5bc9c2))
+
 ## [1.0.5](https://github.com/mikecarbone/deco-server/compare/v1.0.4...v1.0.5) (2023-12-15)
 
 
