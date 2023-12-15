@@ -1027,34 +1027,3 @@ export async function deco() {
     console.log(`Server is running on http://localhost:${PORT}`);
   });
 }
-
-// This is where we setup meta endpoints at the server level (not per-user)
-// server.get("/_meta/directory", async (req, res) => {
-// What do we want to do for users?
-// roles? is_owner, is_admin, detailsJSON
-//    can store a flat object of "name.nickname" "address.primary.street_address_1"
-// Support for webID information, extendable
-// id, created_at, db_key, manage
-// root domain will be for owner
-// subdomains will be for tenants
-//
-// Steps
-// 1. generate admin / owner user
-// 2. allow only admins to create new users
-// 3. admin can edit user permissions
-// users shouldnt need a username, because the url is their username
-//
-// users will have to log in... how? link to personal?
-// log in flow...
-// enter your url endpoint
-// plugin go POST to url/authorize, get a URL in response
-// send user to URL
-// 		if logged in, user can grant permissions, etc
-// 		if logged out, log in then ^
-// after acceptance or denial, redirect user back to plugin
-//
-// Do we want other services to be able to create users?
-// How do we have things pass auth
-// Middleware only triggered on a request
-// return res.status(200).send({ directory: [] });
-// });
