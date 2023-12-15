@@ -105,9 +105,12 @@ Contributions are welcome. Here is what is still needed:
 - [x] Making Install requests
 - [x] Accepting Install requests
 - [x] Testing infrastructure
+- [x] Release infrastructure
+- [x] Packaging plugins
+- [ ] Packaging server
 - [ ] Multi-user database handling
 - [ ] Reset password flow
-- [ ] [Isolated VM](https://www.npmjs.com/package/isolated-vm) implementation for safe plugin execution
+- [ ] [Isolated VM](https://www.npmjs.com/package/isolated-vm) for safe plugin execution
 - [ ] Updating / versioning plugins (checking for and executing)
 - [ ] User profiles
 - [ ] User permissions

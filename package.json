@@ -4,6 +4,7 @@
   "description": "A web server that enables installable plugins, structured learning and bidirectional AI interactions.",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
     "dev": "nodemon dev.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "postinstall": "node ./lib/postInstallRun.js",

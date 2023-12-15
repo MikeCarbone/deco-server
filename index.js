@@ -863,17 +863,17 @@ export const CORE_KEYS = {
 export const CORE_PLUGINS = {
   [CORE_KEYS.users]: {
     manifest: {
-      path: "../deco-core/packages/deco-users/dist/manifest.json",
+      path: process.env.USE_LOCAL_PLUGINS ? "../deco-core/packages/deco-users/dist/manifest.json" : "https://registry.decojs.com/plugins/deco-users/latest",
     },
   },
   [CORE_KEYS.notifications]: {
     manifest: {
-      path: "../deco-core/packages/deco-notifications/dist/manifest.json",
+      path: process.env.USE_LOCAL_PLUGINS ? "../deco-core/packages/deco-notifications/dist/manifest.json" : "https://registry.decojs.com/plugins/deco-notifications/latest",
     },
   },
   [CORE_KEYS.permissions]: {
     manifest: {
-      path: "../deco-core/packages/deco-permissions/dist/manifest.json",
+      path: process.env.USE_LOCAL_PLUGINS ? "../deco-core/packages/deco-permissions/dist/manifest.json" : "https://registry.decojs.com/plugins/deco-permissions/latest",
     },
   },
   [CORE_KEYS.plugins]: {
@@ -882,7 +882,7 @@ export const CORE_PLUGINS = {
     // when the server restarts, so running a function here will not work
     id: INITIALIZE_CORE_PLUGIN_ID,
     manifest: {
-      path: "../deco-core/packages/deco-plugins/dist/manifest.json",
+      path: process.env.USE_LOCAL_PLUGINS ? "../deco-core/packages/deco-plugins/dist/manifest.json" : "https://registry.decojs.com/plugins/deco-plugins/latest",
     },
   },
 };
