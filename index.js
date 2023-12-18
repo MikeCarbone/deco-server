@@ -612,9 +612,16 @@ export async function buildRouteSubset({ server, user }) {
  * @returns {Promise<void>} A promise that resolves once the plugin is successfully installed.
  */
 export async function installPlugin(uri, opts = {}) {
-  const { isLocal = false, coreKey, id, rebuildAfterSuccess = false } = opts;
+  const { isLocal = false, coreKey, id, rebuildAfterSuccess = false, installationsInProgress = [] } = opts;
   try {
     let manifest;
+
+    console.log(`Installing ${uri}...`);
+
+    if (installationsInProgress.includes(uri)) {
+      console.log(`Skipping duplicate installation of ${uri}.`);
+      return;
+    }
 
     if (!isLocal) {
       // Make a fetch request for manifest JSON from the provided URI
@@ -659,9 +666,14 @@ export async function installPlugin(uri, opts = {}) {
 
       pluginCode = await pluginResponse.text();
     } else {
+      /**
+       * For local installs, we're going to assume that app.js code is next to manifest
+       * This simplifies the switch between local and remote plugins,
+       * rather than dealing with relative app URLs in the manifest
+       */
       const navPieces = uri.split("/");
       const removedManifestPath = navPieces.slice(0, navPieces.length - 1);
-      removedManifestPath.push(packageUri);
+      removedManifestPath.push("./app.js");
       const newPath = path.join(__dirname, removedManifestPath.join("/"));
       // Read the file
       pluginCode = await fs.readFile(newPath, "utf-8");
@@ -729,8 +741,8 @@ export async function installPlugin(uri, opts = {}) {
           }
 
           // Check if its a core plugin
-          const corePlugins = Object.values(CORE_KEYS);
-          const corePluginMatch = corePlugins
+          const corePluginKeys = Object.values(CORE_KEYS);
+          const corePluginMatch = corePluginKeys
             .map((corePluginKey) => {
               const corePlugin = CORE_PLUGINS[corePluginKey];
               const isUriMatch = corePlugin?.manifest?.path === dep.manifest_uri;
@@ -741,6 +753,9 @@ export async function installPlugin(uri, opts = {}) {
             })
             .find((item) => item?.isMatch === true);
 
+          // Keep track of which dependencies we're installing, avoid circular
+          installationsInProgress.push(uri);
+
           console.log(`Awaiting install of ${dep.manifest_uri}...`);
 
           depInstalled = true;
@@ -748,6 +763,7 @@ export async function installPlugin(uri, opts = {}) {
           return installPlugin(dep.manifest_uri, {
             isLocal: corePluginMatch && dep.manifest_uri.startsWith(".."),
             coreKey: corePluginMatch?.key,
+            installationsInProgress,
           });
         })
       );
@@ -860,20 +876,21 @@ export const CORE_KEYS = {
   notifications: "notifications",
 };
 
+const isLocalPluginSource = (process.env.PLUGINS_SOURCE || "").toUpperCase() === "LOCAL";
 export const CORE_PLUGINS = {
   [CORE_KEYS.users]: {
     manifest: {
-      path: process.env.USE_LOCAL_PLUGINS ? "../deco-core/packages/deco-users/dist/manifest.json" : "https://registry.decojs.com/plugins/deco-users/latest",
+      path: isLocalPluginSource ? "../deco-core/packages/deco-users/dist/manifest.json" : "https://registry.decojs.com/plugins/deco-users/latest/manifest.json",
     },
   },
   [CORE_KEYS.notifications]: {
     manifest: {
-      path: process.env.USE_LOCAL_PLUGINS ? "../deco-core/packages/deco-notifications/dist/manifest.json" : "https://registry.decojs.com/plugins/deco-notifications/latest",
+      path: isLocalPluginSource ? "../deco-core/packages/deco-notifications/dist/manifest.json" : "https://registry.decojs.com/plugins/deco-notifications/latest/manifest.json",
     },
   },
   [CORE_KEYS.permissions]: {
     manifest: {
-      path: process.env.USE_LOCAL_PLUGINS ? "../deco-core/packages/deco-permissions/dist/manifest.json" : "https://registry.decojs.com/plugins/deco-permissions/latest",
+      path: isLocalPluginSource ? "../deco-core/packages/deco-permissions/dist/manifest.json" : "https://registry.decojs.com/plugins/deco-permissions/latest/manifest.json",
     },
   },
   [CORE_KEYS.plugins]: {
@@ -882,7 +899,7 @@ export const CORE_PLUGINS = {
     // when the server restarts, so running a function here will not work
     id: INITIALIZE_CORE_PLUGIN_ID,
     manifest: {
-      path: process.env.USE_LOCAL_PLUGINS ? "../deco-core/packages/deco-plugins/dist/manifest.json" : "https://registry.decojs.com/plugins/deco-plugins/latest",
+      path: isLocalPluginSource ? "../deco-core/packages/deco-plugins/dist/manifest.json" : "https://registry.decojs.com/plugins/deco-plugins/latest/manifest.json",
     },
   },
 };
@@ -1017,7 +1034,7 @@ export const server = express();
 // Users should be able to bring multiple databases too, not just one
 // Can create a databases table, plugins can refer to a database ID so we know which pool to hit with our queries
 export async function deco() {
-  const isLocal = !!process.env.USE_LOCAL_PLUGINS;
+  const isLocal = !!(process.env.PLUGINS_SOURCE || "").toUpperCase() === "LOCAL";
   await installPlugin(CORE_PLUGINS[CORE_KEYS.plugins].manifest.path, { isLocal, coreKey: CORE_KEYS.plugins, id: CORE_PLUGINS[CORE_KEYS.plugins].id });
   await installPlugin(CORE_PLUGINS[CORE_KEYS.users].manifest.path, { isLocal, coreKey: CORE_KEYS.users });
   await installPlugin(CORE_PLUGINS[CORE_KEYS.permissions].manifest.path, { isLocal, coreKey: CORE_KEYS.permissions });
