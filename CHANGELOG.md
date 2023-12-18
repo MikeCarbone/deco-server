@@ -1,3 +1,11 @@
+## [1.0.7](https://github.com/mikecarbone/deco-server/compare/v1.0.6...v1.0.7) (2023-12-18)
+
+
+### Bug Fixes
+
+* **installations:** fixes remote installation process ([#9](https://github.com/mikecarbone/deco-server/issues/9)) ([f43aa26](https://github.com/mikecarbone/deco-server/commit/f43aa2611f4984bf415fafd2c6348cc904cee0fb))
+* **release:** adds token to release gh action ([0094670](https://github.com/mikecarbone/deco-server/commit/009467000574e7c9b9ae250f8587a069ad38d76e))
+
 ## [1.0.6](https://github.com/mikecarbone/deco-server/compare/v1.0.5...v1.0.6) (2023-12-15)
 
 
