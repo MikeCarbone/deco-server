@@ -714,7 +714,12 @@ export async function installPlugin(uri, opts = {}) {
       return await installPlugin(uri, { isLocal, coreKey, id });
     }
 
-    const appPath = `${installFolder}/app.js`;
+    // Current working directory
+    const currentDirectory = process.cwd();
+
+    // Calculate relative path for import
+    const relativePath = path.relative(currentDirectory, `${installFolder}/app.js`);
+    const appPath = `./${relativePath}`;
 
     // Load app package contents
     const pluginData = await import(appPath);
@@ -747,7 +752,7 @@ export async function installPlugin(uri, opts = {}) {
               const corePlugin = CORE_PLUGINS[corePluginKey];
               const isUriMatch = corePlugin?.manifest?.path === dep.manifest_uri;
               if (isUriMatch) {
-                console.log(`Found a reference to a core plugin: ${corePluginKey}`);
+                console.log(`Found a dependency reference to a core plugin: ${corePluginKey}`);
                 return { ...corePlugin, key: corePluginKey, isMatch: true };
               }
             })
