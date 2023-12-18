@@ -1,3 +1,10 @@
+## [1.0.8](https://github.com/mikecarbone/deco-server/compare/v1.0.7...v1.0.8) (2023-12-18)
+
+
+### Bug Fixes
+
+* **installation:** fixes relative path issue ([#10](https://github.com/mikecarbone/deco-server/issues/10)) ([f578aeb](https://github.com/mikecarbone/deco-server/commit/f578aebd6d9dbf715bb320145732a4be62e8ccb2))
+
 ## [1.0.7](https://github.com/mikecarbone/deco-server/compare/v1.0.6...v1.0.7) (2023-12-18)
 
 
