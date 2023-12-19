@@ -1,3 +1,10 @@
+## [1.0.12](https://github.com/mikecarbone/deco-server/compare/v1.0.11...v1.0.12) (2023-12-19)
+
+
+### Bug Fixes
+
+* **database:** adds support for connection via URL ([#14](https://github.com/mikecarbone/deco-server/issues/14)) ([020236c](https://github.com/mikecarbone/deco-server/commit/020236c4d376feaeca22ca78d2b5606face9e0f9))
+
 ## [1.0.11](https://github.com/mikecarbone/deco-server/compare/v1.0.10...v1.0.11) (2023-12-19)
 
 
