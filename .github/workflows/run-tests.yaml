@@ -1,7 +1,5 @@
 name: Run Tests
 
-environment: ci
-
 on:
   push:
     branches:
@@ -28,6 +26,12 @@ jobs:
 
       - name: Run tests
         run: npm test
+        env:
+          PGHOST: ${{ secrets.PGHOST }}
+          PGPORT: ${{ secrets.PGPORT }}
+          PGDATABASE: ${{ secrets.PGDATABASE }}
+          PGUSER: ${{ secrets.PGUSER }}
+          PGPASSWORD: ${{ secrets.PGPASSWORD }}
 
       - name: Check test results and fail if necessary
         run: |
