@@ -20,6 +20,20 @@ const PORT = process.env.PORT || 3000;
 
 const { PLUGIN_SECRET_ENCRYPTION_STRING, LOGIN_JWT_KEY, DEFAULT_USER_PASSWORD, INITIALIZE_CORE_PLUGIN_ID } = config;
 
+function getInstallationsDir() {
+  const currentDir = process.cwd();
+  return path.join(currentDir, ".deco", "installs");
+}
+
+async function createInstallationsDir() {
+  const installationsDir = getInstallationsDir();
+  try {
+    return await fs.access(installationsDir);
+  } catch (_err) {
+    return await fs.mkdir(installationsDir, { recursive: true });
+  }
+}
+
 // Decryption function
 export function decryptSecret(encryptedText, key, iv) {
   const decipher = createDecipheriv("aes-256-cbc", Buffer.from(key, "hex"), Buffer.from(iv, "hex"));
@@ -30,7 +44,8 @@ export function decryptSecret(encryptedText, key, iv) {
 
 export async function loadPlugins() {
   try {
-    const { endpoints } = await import(`./installs/deco-plugins/app.js`);
+    const installationsDir = getInstallationsDir();
+    const { endpoints } = await import(path.join(installationsDir, "deco-plugins", "app.js"));
     const execution = endpoints.paths["/"].get.execution;
 
     // This execution ONLY applies to this specific user plugin
@@ -177,7 +192,8 @@ export async function prepareEnvironmentInterface(plugin, plugins) {
   // Import module and append it to the object
   const models = await Promise.all(
     requiredModules.map(async (mod) => {
-      const module = await import(`./installs/${mod.plugin_name}/app.js`);
+      const installationsDir = getInstallationsDir();
+      const module = await import(path.join(installationsDir, mod.plugin_name, "app.js"));
       mod.module = module;
       mod.tables = await module.tables();
       return mod;
@@ -283,7 +299,8 @@ export async function authenticationMiddleware(req, res, next, plugin, permissio
   const requestSource = req.get("host").toUpperCase();
 
   // Check to see if permission record exists for this
-  const { endpoints } = await import("./installs/deco-permissions/app.js");
+  const installationsDir = getInstallationsDir();
+  const { endpoints } = await import(path.join(installationsDir, "deco-permissions", "app.js"));
   const permissionFetch = endpoints.paths["/"].get.execution;
   // This execution ONLY applies to this specific user plugin
   const permissionFetchOps = await permissionFetch({
@@ -315,7 +332,8 @@ export async function authenticationMiddleware(req, res, next, plugin, permissio
   if (cookieAuthToken) {
     try {
       res.locals._server.login_jwt_key = LOGIN_JWT_KEY;
-      const usersPlugin = await import("./installs/deco-users/app.js");
+      const installationsDir = getInstallationsDir();
+      const usersPlugin = await import(path.join(installationsDir, "deco-users", "app.js"));
       const validate = getParallelRouteExecutionContext(userPluginId);
       const { data, status } = await validate({ req, res }, usersPlugin.endpoints.paths["/authenticate"].get);
       if (status === 200) {
@@ -425,7 +443,8 @@ export async function buildRouteSubset({ server, user }) {
 
   await Promise.all(
     plugins.map(async (installedPlugin) => {
-      const modulePath = path.resolve(`./installs/${installedPlugin.name}/app.js`);
+      const installationsDir = getInstallationsDir();
+      const modulePath = path.join(installationsDir, installedPlugin.name, "/app.js");
 
       /**
        * TODO: Solve ESM dynamic import
@@ -641,8 +660,9 @@ export async function installPlugin(uri, opts = {}) {
     // For now, let's assume all permissions are accepted automatically
 
     // Make a folder inside "installs," titled the same as the "name" field from the manifest
+    const installationsDir = getInstallationsDir();
     const folderName = manifest.name;
-    const installFolder = path.join(__dirname, "installs", folderName);
+    const installFolder = path.join(installationsDir, folderName);
 
     // Create the folder if it doesn't exist
     await fs.mkdir(installFolder, { recursive: true });
@@ -683,7 +703,7 @@ export async function installPlugin(uri, opts = {}) {
     await fs.writeFile(path.join(installFolder, "app.js"), pluginCode);
 
     let plugins = await loadPlugins();
-    const installations = await import("./installs/deco-plugins/app.js");
+    const installations = await import(path.join(installationsDir, "deco-plugins", "app.js"));
 
     /**
      * If there is no plugins data, that means this is the first install
@@ -715,7 +735,7 @@ export async function installPlugin(uri, opts = {}) {
     }
 
     // Relative path for import
-    const appPath = `./installs/${manifest.name}/app.js`;
+    const appPath = path.join(installationsDir, manifest.name, "app.js");
 
     // Load app package contents
     const pluginData = await import(appPath);
@@ -908,7 +928,8 @@ export const CORE_PLUGINS = {
 export async function createOwnerIfNotThereAlready() {
   const plugins = await loadPlugins();
   const usersPlugin = plugins.find((a) => a.core_key === CORE_KEYS.users);
-  const { endpoints } = await import(`./installs/${usersPlugin.name}/app.js`);
+  const installationsDir = getInstallationsDir();
+  const { endpoints } = await import(path.join(installationsDir, usersPlugin.name, "app.js"));
   const getExecution = await endpoints.paths["/"].get.execution({ res: { locals: { isRootUser: true } } });
   const usersFetch = await executeOperations(getExecution, usersPlugin.id);
   const allUsers = usersFetch.allUsers.rows;
@@ -924,7 +945,8 @@ export async function buildRoutes(mainServer) {
   // For each user, let's build our route subset
   const plugins = await loadPlugins();
   const usersPlugin = plugins.find((a) => a.core_key === CORE_KEYS.users);
-  const { endpoints } = await import(`./installs/${usersPlugin.name}/app.js`);
+  const installationsDir = getInstallationsDir();
+  const { endpoints } = await import(path.join(installationsDir, usersPlugin.name, "app.js"));
   const execution = endpoints.paths["/"].get.execution;
   // This execution ONLY applies to this specific user plugin
   const executionOps = await execution({ res: { locals: { isRootUser: true } } });
@@ -1035,6 +1057,7 @@ export const server = express();
 // Users should be able to bring multiple databases too, not just one
 // Can create a databases table, plugins can refer to a database ID so we know which pool to hit with our queries
 export async function deco() {
+  await createInstallationsDir();
   const isLocal = !!(process.env.PLUGINS_SOURCE || "").toUpperCase() === "LOCAL";
   await installPlugin(CORE_PLUGINS[CORE_KEYS.plugins].manifest.path, { isLocal, coreKey: CORE_KEYS.plugins, id: CORE_PLUGINS[CORE_KEYS.plugins].id });
   await installPlugin(CORE_PLUGINS[CORE_KEYS.users].manifest.path, { isLocal, coreKey: CORE_KEYS.users });
