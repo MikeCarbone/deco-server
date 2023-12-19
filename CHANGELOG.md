@@ -1,3 +1,10 @@
+## [1.0.11](https://github.com/mikecarbone/deco-server/compare/v1.0.10...v1.0.11) (2023-12-19)
+
+
+### Bug Fixes
+
+* **database:** better db connection messaging ([#13](https://github.com/mikecarbone/deco-server/issues/13)) ([4aa2d40](https://github.com/mikecarbone/deco-server/commit/4aa2d40aa4b6ffbbd4aaee2bfcfd7063aec67433))
+
 ## [1.0.10](https://github.com/mikecarbone/deco-server/compare/v1.0.9...v1.0.10) (2023-12-19)
 
 
