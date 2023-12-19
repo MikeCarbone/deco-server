@@ -1,3 +1,10 @@
+## [1.0.9](https://github.com/mikecarbone/deco-server/compare/v1.0.8...v1.0.9) (2023-12-19)
+
+
+### Bug Fixes
+
+* **installation:** Fixes dynamic import path ([#11](https://github.com/mikecarbone/deco-server/issues/11)) ([95bf08a](https://github.com/mikecarbone/deco-server/commit/95bf08aeb08d9b8395842464994a3b00e648cf72))
+
 ## [1.0.8](https://github.com/mikecarbone/deco-server/compare/v1.0.7...v1.0.8) (2023-12-18)
 
 
