@@ -1,6 +1,7 @@
 # Deco Server
 
 [![semantic-release: angular](https://img.shields.io/badge/semantic--release-angular-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
+![npm](https://img.shields.io/npm/dw/%40deco-team/deco-server?logo=npm&link=https%3A%2F%2Fwww.npmjs.com%2Fpackage%2F%40deco-team%2Fdeco-server)
 
 Deco Server is an easy way to set up a web server that is compatible with the Deco protocol and ecosystem of plugins. The mission of Deco is [to create a network of artificially intelligent, **bidirectional** personal assistants](https://decojs.com).
 
@@ -10,18 +11,38 @@ Why? I believe the future is networked artificial intelligence profiles. These p
 
 ## Installation
 
+1. Install
+
 ```bash
 npm i deco
 ```
 
-```js
-// index.js
-import { decoServer } from "deco";
+2. Connect a root database via .env file
 
-decoServer();
+```bash
+echo "\nDBURL=postgresql://dbuser:secretpassword@database.server.com:3211/mydb\n" >> .env
 ```
 
-That's all that is required. Your can begin configuring your profile at `http://localhost:3456`.
+Replace the variables with your values. Don't have a database? We recommend using [Railway](https://railway.app).
+
+3. Create index.js file
+
+```js
+// index.js
+import { deco } from "deco";
+
+deco();
+```
+
+4. Run
+
+```
+node index.js
+```
+
+That's all that is required. Your can begin configuring your profile at `http://localhost:3000`.
+
+Additionally, you can view your OpenAPI Spec at `/_meta/open-api` to get started making requests.
 
 ## Stability
 
@@ -32,6 +53,8 @@ This project is in alpha and is not guaranteed to be secure. Do not store any se
 Below is an overview of some of the concepts of a Deco server.
 
 ### Plugins
+
+You can view [a live plugin here](https://registry.decojs.com/plugins/deco-permissions/latest/manifest.json).
 
 With a Deco server, plugins allow you to extend the capabilities of your server. Plugins can create new tables on your database, create new endpoints, and interact with other plugins. A plugin consists of two files: `manifest.json` and `app.js`. The manifest outlines the name, version, dependencies, and other meta information including the URI of the `app.js` file. The app will export specially named functions:
 
@@ -107,7 +130,7 @@ Contributions are welcome. Here is what is still needed:
 - [x] Testing infrastructure
 - [x] Release infrastructure
 - [x] Packaging plugins
-- [ ] Packaging server
+- [x] Packaging server
 - [ ] Multi-user database handling
 - [ ] Reset password flow
 - [ ] [Isolated VM](https://www.npmjs.com/package/isolated-vm) for safe plugin execution
