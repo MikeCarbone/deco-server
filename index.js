@@ -714,12 +714,8 @@ export async function installPlugin(uri, opts = {}) {
       return await installPlugin(uri, { isLocal, coreKey, id });
     }
 
-    // Current working directory
-    const currentDirectory = process.cwd();
-
-    // Calculate relative path for import
-    const relativePath = path.relative(currentDirectory, `${installFolder}/app.js`);
-    const appPath = `./${relativePath}`;
+    // Relative path for import
+    const appPath = `./installs/${manifest.name}/app.js`;
 
     // Load app package contents
     const pluginData = await import(appPath);
