@@ -1,7 +1,7 @@
 /**
- * We allow two forms of connection
- * We can do individual env variables PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD
- * or we allow a single DBURL env variable
+ * We allow two options for connecting to your database:
+ * 1. One .env variable `DBURL`
+ * 2. All .env variables `PGHOST`, `PGPORT`, `PGDATABASE`, `PGUSER`, `PGPASSWORD`
  */
 import pg from "pg";
 import { config } from "dotenv";
