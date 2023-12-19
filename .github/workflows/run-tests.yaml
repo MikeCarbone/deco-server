@@ -1,5 +1,7 @@
 name: Run Tests
 
+environment: ci
+
 on:
   push:
     branches:
