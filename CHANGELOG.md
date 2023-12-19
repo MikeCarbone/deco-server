@@ -1,3 +1,10 @@
+## [1.0.10](https://github.com/mikecarbone/deco-server/compare/v1.0.9...v1.0.10) (2023-12-19)
+
+
+### Bug Fixes
+
+* **installations:** adds .deco folder ([#12](https://github.com/mikecarbone/deco-server/issues/12)) ([eca04da](https://github.com/mikecarbone/deco-server/commit/eca04dac48c68d390d4fc7756ec220af6b38ab9e))
+
 ## [1.0.9](https://github.com/mikecarbone/deco-server/compare/v1.0.8...v1.0.9) (2023-12-19)
 
 

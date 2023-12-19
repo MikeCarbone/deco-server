@@ -1,6 +1,6 @@
 {
   "name": "@deco-team/deco-server",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "A web server that enables installable plugins, structured learning and bidirectional AI interactions.",
   "main": "index.js",
   "scripts": {
