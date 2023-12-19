@@ -1018,7 +1018,7 @@ export async function buildRoutes(mainServer) {
           },
           servers: [
             {
-              url: "http://localhost:3456",
+              url: `http://localhost:${PORT}`,
               description: "Local Development Server",
             },
           ],
