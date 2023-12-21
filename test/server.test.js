@@ -1,30 +1,33 @@
 import fs from "fs/promises";
+import path from "path";
+import { fileURLToPath } from "url";
 import { client } from "../db/index.js";
 import request from "supertest";
-import { CORE_PLUGINS, CORE_KEYS, installPlugin, server } from "../index.js";
+import { CORE_PLUGINS, CORE_KEYS, installPlugin, server, deco } from "../index.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const CREATED_TABLES = [];
+
+beforeAll(async () => {
+  await deco();
+});
 
 afterAll(async () => {
   console.log("Donezoooo");
 });
 
-// We dont test individual apps, just core server logic
-test("adds 1 + 2 to equal 3", () => {
-  console.log("MATEY");
-  expect(1 + 2).toBe(3);
-});
-
 describe("Setup", () => {
   test("Creates app ID for db", () => {
-    expect(typeof CORE_PLUGINS[CORE_KEYS.apps].id).toBe("string");
-    expect(CORE_PLUGINS[CORE_KEYS.apps].id.length).toBe(36); // UUID length
+    expect(typeof CORE_PLUGINS[CORE_KEYS.plugins].id).toBe("string");
+    expect(CORE_PLUGINS[CORE_KEYS.plugins].id.length).toBe(36); // UUID length
   });
 
-  test("Server stuff", async () => {
-    const response = await request(server).get("/_meta/directory");
+  test("OpenAPI Spec is present", async () => {
+    const response = await request(server).get("/_meta/open-api");
     expect(response.status).toBe(200); // Expect HTTP status code 200
-    expect(response.body).toHaveProperty("directory", []); // Expect the response body to have a 'message' property
+    expect(response.body).toHaveProperty("openapi", "3.0.0");
   });
 
   test("Installs core apps", () => {});
@@ -38,8 +41,8 @@ describe("Installations", () => {
   // saves routes entry in
   test("Installs remote app", async () => {
     const install = await installPlugin("https://www.decojs.com/manifest.json");
-    const installedAppPath = path.resolve(__dirname, `../installs/${install.manifest.name}/app.js`);
-    const installedManifestPath = path.resolve(__dirname, `../installs/${install.manifest.name}/manifest.json`);
+    const installedAppPath = path.resolve(__dirname, `../.deco/installs/${install.manifest.name}/app.js`);
+    const installedManifestPath = path.resolve(__dirname, `../.deco/installs/${install.manifest.name}/manifest.json`);
     await expect(fs.access(installedAppPath)).resolves.toBeUndefined();
     await expect(fs.access(installedManifestPath)).resolves.toBeUndefined();
   });
